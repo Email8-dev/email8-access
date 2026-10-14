@@ -1,0 +1,11 @@
+{
+  "vertical": "email8",
+  "services": [
+    {
+      "service_type": "email8:access",
+      "extra_env": {
+        "EMAIL8_ACCESS_ACCEPT_PROXY": "true"
+      }
+    }
+  ]
+}
