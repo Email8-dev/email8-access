@@ -15,20 +15,20 @@
 #[allow(dead_code)]
 mod auth;
 #[allow(dead_code)]
-mod store_http;
-#[allow(dead_code)]
 mod config;
 #[allow(dead_code)]
 mod dav;
 mod imap_session;
 mod openapi;
+#[allow(dead_code)]
+mod pop3_session;
 mod registration;
 #[allow(dead_code)]
 mod server;
 #[allow(dead_code)]
-mod pop3_session;
-#[allow(dead_code)]
 mod sieve_session;
+#[allow(dead_code)]
+mod store_http;
 
 use utoipa::OpenApi;
 

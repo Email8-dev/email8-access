@@ -15,7 +15,10 @@ use std::sync::Arc;
 
 use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt};
 
-use email8::imap_proto::{Element, FetchItem, Op, Receiver, SequenceSet, StoreItem, CAPABILITIES_POST_AUTH, CAPABILITIES_PRE_AUTH};
+use email8::imap_proto::{
+    Element, FetchItem, Op, Receiver, SequenceSet, StoreItem, CAPABILITIES_POST_AUTH,
+    CAPABILITIES_PRE_AUTH,
+};
 
 use crate::auth::AccessAuth;
 use crate::config::AccessConfig;
@@ -45,7 +48,18 @@ impl<S: AsyncRead + AsyncWrite + Unpin> ImapSession<S> {
         pool: sqlx::PgPool,
         engine: std::sync::Arc<sentin8::shield::PolicyEngine>,
     ) -> Self {
-        Self { stream, receiver: Receiver::new(), config, pool, engine, auth: None, selected: None, listing: Vec::new(), pending_expunge: Vec::new(), append_literal: None }
+        Self {
+            stream,
+            receiver: Receiver::new(),
+            config,
+            pool,
+            engine,
+            auth: None,
+            selected: None,
+            listing: Vec::new(),
+            pending_expunge: Vec::new(),
+            append_literal: None,
+        }
     }
 
     pub async fn run(mut self) -> std::io::Result<()> {
@@ -55,20 +69,29 @@ impl<S: AsyncRead + AsyncWrite + Unpin> ImapSession<S> {
             tracing::warn!(error = %e, "email8:access: PROXY v2 parse failed — dropping");
             return Ok(());
         }
-        self.write_raw(&email8::imap_proto::greeting("email8", CAPABILITIES_PRE_AUTH))
-            .await?;
+        self.write_raw(&email8::imap_proto::greeting(
+            "email8",
+            CAPABILITIES_PRE_AUTH,
+        ))
+        .await?;
         let mut buf = [0u8; 8192];
         loop {
-            let n = tokio::time::timeout(std::time::Duration::from_secs(30 * 60), self.stream.read(&mut buf))
-                .await
-                .map_err(|_| std::io::Error::new(std::io::ErrorKind::TimedOut, "session timed out"))??;
+            let n = tokio::time::timeout(
+                std::time::Duration::from_secs(30 * 60),
+                self.stream.read(&mut buf),
+            )
+            .await
+            .map_err(|_| {
+                std::io::Error::new(std::io::ErrorKind::TimedOut, "session timed out")
+            })??;
             if n == 0 {
                 return Ok(());
             }
             for element in self.receiver.parse(&buf[..n]) {
                 match element {
                     Element::LiteralContinuation { size } => {
-                        self.write_raw(&format!("+ Ready for {size} bytes\r\n")).await?;
+                        self.write_raw(&format!("+ Ready for {size} bytes\r\n"))
+                            .await?;
                     }
                     Element::Literal { data } => {
                         // The literal that follows an APPEND (or a SEARCH
@@ -95,11 +118,21 @@ impl<S: AsyncRead + AsyncWrite + Unpin> ImapSession<S> {
         // Pre-auth commands only (IMAP4rev2 §6 except SASL).
         let pre_auth_ok = matches!(
             op,
-            Op::Capability | Op::Noop | Op::Logout | Op::StartTls | Op::Authenticate { .. } | Op::Login { .. } | Op::Id { .. } | Op::Enable { .. }
+            Op::Capability
+                | Op::Noop
+                | Op::Logout
+                | Op::StartTls
+                | Op::Authenticate { .. }
+                | Op::Login { .. }
+                | Op::Id { .. }
+                | Op::Enable { .. }
         );
         if self.auth.is_none() && !pre_auth_ok {
-            self.write_raw(&email8::imap_proto::tagged_no(tag, "Please authenticate first"))
-                .await?;
+            self.write_raw(&email8::imap_proto::tagged_no(
+                tag,
+                "Please authenticate first",
+            ))
+            .await?;
             return Ok(false);
         }
         match op {
@@ -116,23 +149,32 @@ impl<S: AsyncRead + AsyncWrite + Unpin> ImapSession<S> {
                 } else {
                     CAPABILITIES_PRE_AUTH
                 };
-                self.write_raw(&email8::imap_proto::capability_line(caps)).await?;
-                self.write_raw(&email8::imap_proto::tagged_ok(tag, "CAPABILITY completed")).await?;
+                self.write_raw(&email8::imap_proto::capability_line(caps))
+                    .await?;
+                self.write_raw(&email8::imap_proto::tagged_ok(tag, "CAPABILITY completed"))
+                    .await?;
             }
             Op::Noop | Op::Check | Op::Done => {
-                self.write_raw(&email8::imap_proto::tagged_ok(tag, "NOOP completed")).await?;
+                self.write_raw(&email8::imap_proto::tagged_ok(tag, "NOOP completed"))
+                    .await?;
             }
             Op::Id { .. } => {
-                self.write_raw(&email8::imap_proto::untagged("ID (\"name\" \"Email8\" \"version\" \"0.1.0\")"))
+                self.write_raw(&email8::imap_proto::untagged(
+                    "ID (\"name\" \"Email8\" \"version\" \"0.1.0\")",
+                ))
+                .await?;
+                self.write_raw(&email8::imap_proto::tagged_ok(tag, "ID completed"))
                     .await?;
-                self.write_raw(&email8::imap_proto::tagged_ok(tag, "ID completed")).await?;
             }
             Op::StartTls => {
                 // The listener owns the TLS swap (access design §2);
                 // raw-TCP TLS upgrade is platform gap G1, wired at the
                 // listener — the session just acknowledges readiness.
-                self.write_raw(&email8::imap_proto::tagged_ok(tag, "Begin TLS negotiation now"))
-                    .await?;
+                self.write_raw(&email8::imap_proto::tagged_ok(
+                    tag,
+                    "Begin TLS negotiation now",
+                ))
+                .await?;
             }
             Op::Authenticate { mechanism, initial } => {
                 let token = initial
@@ -168,8 +210,11 @@ impl<S: AsyncRead + AsyncWrite + Unpin> ImapSession<S> {
                             .await?;
                     }
                     Err(e) => {
-                        self.write_raw(&email8::imap_proto::tagged_no(tag, format!("LIST failed: {e}")))
-                            .await?;
+                        self.write_raw(&email8::imap_proto::tagged_no(
+                            tag,
+                            format!("LIST failed: {e}"),
+                        ))
+                        .await?;
                     }
                 }
             }
@@ -180,12 +225,18 @@ impl<S: AsyncRead + AsyncWrite + Unpin> ImapSession<S> {
                         for line in resp {
                             self.write_raw(&line).await?;
                         }
-                        self.write_raw(&email8::imap_proto::tagged_ok(tag, "[READ-WRITE] SELECT completed"))
-                            .await?;
+                        self.write_raw(&email8::imap_proto::tagged_ok(
+                            tag,
+                            "[READ-WRITE] SELECT completed",
+                        ))
+                        .await?;
                     }
                     Err(e) => {
-                        self.write_raw(&email8::imap_proto::tagged_no(tag, format!("SELECT failed: {e}")))
-                            .await?;
+                        self.write_raw(&email8::imap_proto::tagged_no(
+                            tag,
+                            format!("SELECT failed: {e}"),
+                        ))
+                        .await?;
                     }
                 }
             }
@@ -216,19 +267,29 @@ impl<S: AsyncRead + AsyncWrite + Unpin> ImapSession<S> {
                             .await?;
                     }
                     Err(e) => {
-                        self.write_raw(&email8::imap_proto::tagged_no(tag, format!("STATUS failed: {e}")))
-                            .await?;
+                        self.write_raw(&email8::imap_proto::tagged_no(
+                            tag,
+                            format!("STATUS failed: {e}"),
+                        ))
+                        .await?;
                     }
                 }
             }
-            Op::Fetch { sequence, items, uid } => {
+            Op::Fetch {
+                sequence,
+                items,
+                uid,
+            } => {
                 let Some((mailbox_id, _, _)) = self.selected else {
                     self.write_raw(&email8::imap_proto::tagged_bad(tag, "No mailbox selected"))
                         .await?;
                     return Ok(false);
                 };
                 let auth = self.auth.clone().unwrap();
-                match self.op_fetch(&auth, mailbox_id, &sequence, &items, uid).await {
+                match self
+                    .op_fetch(&auth, mailbox_id, &sequence, &items, uid)
+                    .await
+                {
                     Ok(lines) => {
                         for line in lines {
                             self.write_raw(&line).await?;
@@ -237,26 +298,41 @@ impl<S: AsyncRead + AsyncWrite + Unpin> ImapSession<S> {
                             .await?;
                     }
                     Err(e) => {
-                        self.write_raw(&email8::imap_proto::tagged_no(tag, format!("FETCH failed: {e}")))
-                            .await?;
+                        self.write_raw(&email8::imap_proto::tagged_no(
+                            tag,
+                            format!("FETCH failed: {e}"),
+                        ))
+                        .await?;
                     }
                 }
             }
-            Op::Store { sequence, items, silent, uid, .. } => {
+            Op::Store {
+                sequence,
+                items,
+                silent,
+                uid,
+                ..
+            } => {
                 let Some((mailbox_id, _, _)) = self.selected else {
                     self.write_raw(&email8::imap_proto::tagged_bad(tag, "No mailbox selected"))
                         .await?;
                     return Ok(false);
                 };
                 let auth = self.auth.clone().unwrap();
-                match self.op_store(&auth, mailbox_id, &sequence, &items, silent, uid).await {
+                match self
+                    .op_store(&auth, mailbox_id, &sequence, &items, silent, uid)
+                    .await
+                {
                     Ok(()) => {
                         self.write_raw(&email8::imap_proto::tagged_ok(tag, "STORE completed"))
                             .await?;
                     }
                     Err(e) => {
-                        self.write_raw(&email8::imap_proto::tagged_no(tag, format!("STORE failed: {e}")))
-                            .await?;
+                        self.write_raw(&email8::imap_proto::tagged_no(
+                            tag,
+                            format!("STORE failed: {e}"),
+                        ))
+                        .await?;
                     }
                 }
             }
@@ -269,17 +345,25 @@ impl<S: AsyncRead + AsyncWrite + Unpin> ImapSession<S> {
                 let auth = self.auth.clone().unwrap();
                 match self.op_search(&auth, mailbox_id, &criteria).await {
                     Ok(ids) => {
-                        self.write_raw(&email8::imap_proto::search_line(&ids)).await?;
+                        self.write_raw(&email8::imap_proto::search_line(&ids))
+                            .await?;
                         self.write_raw(&email8::imap_proto::tagged_ok(tag, "SEARCH completed"))
                             .await?;
                     }
                     Err(e) => {
-                        self.write_raw(&email8::imap_proto::tagged_no(tag, format!("SEARCH failed: {e}")))
-                            .await?;
+                        self.write_raw(&email8::imap_proto::tagged_no(
+                            tag,
+                            format!("SEARCH failed: {e}"),
+                        ))
+                        .await?;
                     }
                 }
             }
-            Op::Sort { keys, criteria, uid } => {
+            Op::Sort {
+                keys,
+                criteria,
+                uid,
+            } => {
                 let Some((mailbox_id, _, _)) = self.selected else {
                     self.write_raw(&email8::imap_proto::tagged_bad(tag, "No mailbox selected"))
                         .await?;
@@ -290,9 +374,15 @@ impl<S: AsyncRead + AsyncWrite + Unpin> ImapSession<S> {
                     Ok(orders) => {
                         // * SORT (ids) — the id sequence per RFC 5256.
                         let value = if uid {
-                            orders.iter().map(|(_, u)| u.to_string()).collect::<Vec<_>>()
+                            orders
+                                .iter()
+                                .map(|(_, u)| u.to_string())
+                                .collect::<Vec<_>>()
                         } else {
-                            orders.iter().map(|(seq, _)| seq.to_string()).collect::<Vec<_>>()
+                            orders
+                                .iter()
+                                .map(|(seq, _)| seq.to_string())
+                                .collect::<Vec<_>>()
                         };
                         self.write_raw(&email8::imap_proto::untagged(format!(
                             "* SORT {}",
@@ -303,20 +393,30 @@ impl<S: AsyncRead + AsyncWrite + Unpin> ImapSession<S> {
                             .await?;
                     }
                     Err(e) => {
-                        self.write_raw(&email8::imap_proto::tagged_no(tag, format!("SORT failed: {e}")))
-                            .await?;
+                        self.write_raw(&email8::imap_proto::tagged_no(
+                            tag,
+                            format!("SORT failed: {e}"),
+                        ))
+                        .await?;
                     }
                 }
                 let _ = uid;
             }
-            Op::Thread { algorithm, criteria, uid } => {
+            Op::Thread {
+                algorithm,
+                criteria,
+                uid,
+            } => {
                 let Some((mailbox_id, _, _)) = self.selected else {
                     self.write_raw(&email8::imap_proto::tagged_bad(tag, "No mailbox selected"))
                         .await?;
                     return Ok(false);
                 };
                 let auth = self.auth.clone().unwrap();
-                match self.op_thread(&auth, mailbox_id, &algorithm, &criteria).await {
+                match self
+                    .op_thread(&auth, mailbox_id, &algorithm, &criteria)
+                    .await
+                {
                     Ok(groups) => {
                         // * THREAD (a b)(c d) — grouped member ids.
                         let rendered: Vec<String> = groups
@@ -339,8 +439,11 @@ impl<S: AsyncRead + AsyncWrite + Unpin> ImapSession<S> {
                             .await?;
                     }
                     Err(e) => {
-                        self.write_raw(&email8::imap_proto::tagged_no(tag, format!("THREAD failed: {e}")))
-                            .await?;
+                        self.write_raw(&email8::imap_proto::tagged_no(
+                            tag,
+                            format!("THREAD failed: {e}"),
+                        ))
+                        .await?;
                     }
                 }
                 let _ = uid;
@@ -371,8 +474,11 @@ impl<S: AsyncRead + AsyncWrite + Unpin> ImapSession<S> {
                     let listing = self.listing.clone();
                     for (seq, (id, _)) in listing.iter().enumerate() {
                         if targets.contains(id) {
-                            self.write_raw(&email8::imap_proto::untagged(format!("EXPUNGE {}", seq + 1)))
-                                .await?;
+                            self.write_raw(&email8::imap_proto::untagged(format!(
+                                "EXPUNGE {}",
+                                seq + 1
+                            )))
+                            .await?;
                         }
                     }
                     self.listing.retain(|(id, _)| !targets.contains(id));
@@ -381,7 +487,16 @@ impl<S: AsyncRead + AsyncWrite + Unpin> ImapSession<S> {
                 self.write_raw(&email8::imap_proto::tagged_ok(tag, "EXPUNGE completed"))
                     .await?;
             }
-            Op::Copy { ref sequence, ref mailbox, uid } | Op::Move { ref sequence, ref mailbox, uid } => {
+            Op::Copy {
+                ref sequence,
+                ref mailbox,
+                uid,
+            }
+            | Op::Move {
+                ref sequence,
+                ref mailbox,
+                uid,
+            } => {
                 let Some((src_mailbox, _, _)) = self.selected else {
                     self.write_raw(&email8::imap_proto::tagged_bad(tag, "No mailbox selected"))
                         .await?;
@@ -390,18 +505,24 @@ impl<S: AsyncRead + AsyncWrite + Unpin> ImapSession<S> {
                 let auth = self.auth.clone().unwrap();
                 let is_move = matches!(&op, Op::Move { .. });
                 match self
-                    .op_copy(&auth, src_mailbox, &sequence, &mailbox, uid, is_move)
+                    .op_copy(&auth, src_mailbox, sequence, mailbox, uid, is_move)
                     .await
                 {
                     Ok(()) => {
                         let label = if is_move { "MOVE" } else { "COPY" };
-                        self.write_raw(&email8::imap_proto::tagged_ok(tag, format!("{label} completed")))
-                            .await?;
+                        self.write_raw(&email8::imap_proto::tagged_ok(
+                            tag,
+                            format!("{label} completed"),
+                        ))
+                        .await?;
                     }
                     Err(e) => {
                         let label = if is_move { "MOVE" } else { "COPY" };
-                        self.write_raw(&email8::imap_proto::tagged_no(tag, format!("{label} failed: {e}")))
-                            .await?;
+                        self.write_raw(&email8::imap_proto::tagged_no(
+                            tag,
+                            format!("{label} failed: {e}"),
+                        ))
+                        .await?;
                     }
                 }
             }
@@ -416,19 +537,26 @@ impl<S: AsyncRead + AsyncWrite + Unpin> ImapSession<S> {
                         let extra = appenduid
                             .map(|u| format!(" [APPENDUID 1 {u}]"))
                             .unwrap_or_default();
-                        self.write_raw(&email8::imap_proto::tagged_ok(tag, format!("{extra}APPEND completed")))
-                            .await?;
+                        self.write_raw(&email8::imap_proto::tagged_ok(
+                            tag,
+                            format!("{extra}APPEND completed"),
+                        ))
+                        .await?;
                     }
                     Err(e) => {
-                        self.write_raw(&email8::imap_proto::tagged_no(tag, format!("APPEND failed: {e}")))
-                            .await?;
+                        self.write_raw(&email8::imap_proto::tagged_no(
+                            tag,
+                            format!("APPEND failed: {e}"),
+                        ))
+                        .await?;
                     }
                 }
             }
             Op::Idle => {
                 // IDLE: push exists via the changelog SSE stream (Store);
                 // the session acknowledges and ends the idle on DONE.
-                self.write_raw(&email8::imap_proto::untagged("OK IDLE started")).await?;
+                self.write_raw(&email8::imap_proto::untagged("OK IDLE started"))
+                    .await?;
                 // The receiver yields Op::Done on the DONE line.
             }
             Op::Enable { capabilities } => {
@@ -447,23 +575,40 @@ impl<S: AsyncRead + AsyncWrite + Unpin> ImapSession<S> {
                 } else {
                     format!(" [ENABLED {}]", supported.join(" "))
                 };
-                self.write_raw(&email8::imap_proto::tagged_ok(tag, format!("{enabled}ENABLE completed")))
-                    .await?;
+                self.write_raw(&email8::imap_proto::tagged_ok(
+                    tag,
+                    format!("{enabled}ENABLE completed"),
+                ))
+                .await?;
             }
             Op::Unsupported { name } => {
-                self.write_raw(&email8::imap_proto::tagged_bad(tag, format!("{name} not supported")))
-                    .await?;
+                self.write_raw(&email8::imap_proto::tagged_bad(
+                    tag,
+                    format!("{name} not supported"),
+                ))
+                .await?;
             }
             _ => {
-                self.write_raw(&email8::imap_proto::tagged_bad(tag, "Command not implemented yet"))
-                    .await?;
+                self.write_raw(&email8::imap_proto::tagged_bad(
+                    tag,
+                    "Command not implemented yet",
+                ))
+                .await?;
             }
         }
         Ok(false)
     }
 
     async fn finish_login(&mut self, tag: &str, token: &str) -> std::io::Result<()> {
-        match crate::auth::verify(&self.pool, &self.config, &self.engine, token, "email8:mail:read").await {
+        match crate::auth::verify(
+            &self.pool,
+            &self.config,
+            &self.engine,
+            token,
+            "email8:mail:read",
+        )
+        .await
+        {
             Ok(a) => {
                 self.auth = Some(a);
                 self.write_raw(&email8::imap_proto::tagged_ok(
@@ -496,19 +641,18 @@ impl<S: AsyncRead + AsyncWrite + Unpin> ImapSession<S> {
             auth.env_id,
             auth.account_id
         );
-        let resp = client
-            .get(&url)
-            
-            .send()
-            .await
-            .map_err(|e| e.to_string())?;
+        let resp = client.get(&url).send().await.map_err(|e| e.to_string())?;
         if !resp.status().is_success() {
             return Err(format!("store returned {}", resp.status()));
         }
         resp.json().await.map_err(|e| e.to_string())
     }
 
-    async fn list_mailboxes(&self, auth: &AccessAuth, pattern: &str) -> Result<Vec<String>, String> {
+    async fn list_mailboxes(
+        &self,
+        auth: &AccessAuth,
+        pattern: &str,
+    ) -> Result<Vec<String>, String> {
         let arr = self.store_mailboxes(auth).await?;
         let mut lines = Vec::new();
         let empty: Vec<serde_json::Value> = Vec::new();
@@ -531,7 +675,11 @@ impl<S: AsyncRead + AsyncWrite + Unpin> ImapSession<S> {
         Ok(lines)
     }
 
-    async fn select_mailbox(&mut self, auth: &AccessAuth, mailbox: &str) -> Result<Vec<String>, String> {
+    async fn select_mailbox(
+        &mut self,
+        auth: &AccessAuth,
+        mailbox: &str,
+    ) -> Result<Vec<String>, String> {
         let arr = self.store_mailboxes(auth).await?;
         let target = mailbox.trim_matches('"');
         let empty: Vec<serde_json::Value> = Vec::new();
@@ -547,7 +695,8 @@ impl<S: AsyncRead + AsyncWrite + Unpin> ImapSession<S> {
             })
             .ok_or_else(|| format!("mailbox {target} not found"))?
             .clone();
-        let mailbox_id: Uuid = mb.get("id")
+        let mailbox_id: Uuid = mb
+            .get("id")
             .and_then(|v| v.as_str())
             .and_then(|v| v.parse().ok())
             .unwrap_or_else(Uuid::nil);
@@ -557,7 +706,11 @@ impl<S: AsyncRead + AsyncWrite + Unpin> ImapSession<S> {
         self.listing = self.store_mailbox_listing(auth, mailbox_id).await;
         let exists = self.listing.len() as i64;
         self.selected = Some((mailbox_id, uidvalidity, uid_next));
-        Ok(vec![email8::imap_proto::select_ok(uidvalidity, uid_next, exists)])
+        Ok(vec![email8::imap_proto::select_ok(
+            uidvalidity,
+            uid_next,
+            exists,
+        )])
     }
 
     async fn status_mailbox(
@@ -582,7 +735,8 @@ impl<S: AsyncRead + AsyncWrite + Unpin> ImapSession<S> {
             })
             .ok_or_else(|| format!("mailbox {target} not found"))?
             .clone();
-        let id: Uuid = mb.get("id")
+        let id: Uuid = mb
+            .get("id")
             .and_then(|v| v.as_str())
             .and_then(|v| v.parse().ok())
             .unwrap_or_else(Uuid::nil);
@@ -590,19 +744,34 @@ impl<S: AsyncRead + AsyncWrite + Unpin> ImapSession<S> {
         for item in items {
             match item {
                 StatusItem::Messages => {
-                    out.push(("MESSAGES", mb.get("total").and_then(|v| v.as_i64()).unwrap_or(0)));
+                    out.push((
+                        "MESSAGES",
+                        mb.get("total").and_then(|v| v.as_i64()).unwrap_or(0),
+                    ));
                 }
                 StatusItem::UidNext => {
-                    out.push(("UIDNEXT", mb.get("uid_next").and_then(|v| v.as_i64()).unwrap_or(1)));
+                    out.push((
+                        "UIDNEXT",
+                        mb.get("uid_next").and_then(|v| v.as_i64()).unwrap_or(1),
+                    ));
                 }
                 StatusItem::UidValidity => {
-                    out.push(("UIDVALIDITY", mb.get("uid_validity").and_then(|v| v.as_i64()).unwrap_or(1)));
+                    out.push((
+                        "UIDVALIDITY",
+                        mb.get("uid_validity").and_then(|v| v.as_i64()).unwrap_or(1),
+                    ));
                 }
                 StatusItem::Unseen => {
-                    out.push(("UNSEEN", mb.get("unread").and_then(|v| v.as_i64()).unwrap_or(0)));
+                    out.push((
+                        "UNSEEN",
+                        mb.get("unread").and_then(|v| v.as_i64()).unwrap_or(0),
+                    ));
                 }
                 StatusItem::Deleted => {
-                    out.push(("DELETED", mb.get("deleted").and_then(|v| v.as_i64()).unwrap_or(0)));
+                    out.push((
+                        "DELETED",
+                        mb.get("deleted").and_then(|v| v.as_i64()).unwrap_or(0),
+                    ));
                 }
                 StatusItem::Size => {
                     out.push(("SIZE", mb.get("size").and_then(|v| v.as_i64()).unwrap_or(0)));
@@ -633,12 +802,7 @@ impl<S: AsyncRead + AsyncWrite + Unpin> ImapSession<S> {
             self.config.store_url.trim_end_matches('/'),
             auth.account_id
         );
-        let resp = client
-            .get(&url)
-            
-            .send()
-            .await
-            .map_err(|e| e.to_string())?;
+        let resp = client.get(&url).send().await.map_err(|e| e.to_string())?;
         resp.bytes()
             .await
             .map(|b| b.to_vec())
@@ -664,7 +828,12 @@ impl<S: AsyncRead + AsyncWrite + Unpin> ImapSession<S> {
             .and_then(|v| v.as_array())
             .map(|arr| {
                 arr.iter()
-                    .filter_map(|m| Some((m.get("id")?.as_str()?.parse().ok()?, m.get("uid")?.as_i64()?)))
+                    .filter_map(|m| {
+                        Some((
+                            m.get("id")?.as_str()?.parse().ok()?,
+                            m.get("uid")?.as_i64()?,
+                        ))
+                    })
                     .collect()
             })
             .unwrap_or_default()
@@ -698,7 +867,9 @@ impl<S: AsyncRead + AsyncWrite + Unpin> ImapSession<S> {
         let _ = mailbox_id;
         let targets = self.resolve_sequence(sequence, uid_mode);
         let mut lines = Vec::new();
-        let _ = items.iter().any(|i| matches!(i, FetchItem::Body { .. } | FetchItem::Rfc822 { .. }));
+        let _ = items
+            .iter()
+            .any(|i| matches!(i, FetchItem::Body { .. } | FetchItem::Rfc822));
         for (seq, email_id, uid) in targets {
             // Metadata via the per-email endpoint.
             let client = crate::store_http::store_client().await;
@@ -708,17 +879,12 @@ impl<S: AsyncRead + AsyncWrite + Unpin> ImapSession<S> {
                 auth.env_id,
                 auth.account_id
             );
-            let resp = client
-                .get(&url)
-                
-                .send()
-                .await
-                .map_err(|e| e.to_string())?;
+            let resp = client.get(&url).send().await.map_err(|e| e.to_string())?;
             let meta: serde_json::Value = resp.json().await.map_err(|e| e.to_string())?;
             for item in items {
                 match item {
                     FetchItem::Uid => {
-                        lines.push(email8::imap_proto::fetch_item(seq, "UID", &uid.to_string()));
+                        lines.push(email8::imap_proto::fetch_item(seq, "UID", uid.to_string()));
                     }
                     FetchItem::Flags => {
                         let flags = meta
@@ -726,7 +892,9 @@ impl<S: AsyncRead + AsyncWrite + Unpin> ImapSession<S> {
                             .and_then(|v| v.as_array())
                             .map(|a| {
                                 a.iter()
-                                    .filter_map(|k| k.as_str().map(|s| format!("\\{}", title_case(s))))
+                                    .filter_map(|k| {
+                                        k.as_str().map(|s| format!("\\{}", title_case(s)))
+                                    })
                                     .collect::<Vec<_>>()
                                     .join(" ")
                             })
@@ -742,17 +910,28 @@ impl<S: AsyncRead + AsyncWrite + Unpin> ImapSession<S> {
                     }
                     FetchItem::Rfc822Size => {
                         let size = meta.get("size").and_then(|v| v.as_i64()).unwrap_or(0);
-                        lines.push(email8::imap_proto::fetch_item(seq, "RFC822.SIZE", &size.to_string()));
+                        lines.push(email8::imap_proto::fetch_item(
+                            seq,
+                            "RFC822.SIZE",
+                            size.to_string(),
+                        ));
                     }
                     FetchItem::Rfc822 => {
                         // RFC822 ≡ BODY[] — the full raw message.
                         let email_id = meta.get("id").and_then(|v| v.as_str()).unwrap_or_default();
-                        let blob = meta.get("blob_hash").and_then(|v| v.as_str()).unwrap_or_default();
+                        let blob = meta
+                            .get("blob_hash")
+                            .and_then(|v| v.as_str())
+                            .unwrap_or_default();
                         let raw = self.fetch_raw_blob(auth, blob).await.unwrap_or_default();
                         lines.push(email8::imap_proto::fetch_literal(seq, "RFC822", &raw));
                         let _ = email_id;
                     }
-                    FetchItem::Body { section, partial: _, peek: _ } => {
+                    FetchItem::Body {
+                        section,
+                        partial: _,
+                        peek: _,
+                    } => {
                         // The raw blob lives in Storage; slice the requested
                         // section (HEADER.FIELDS list, HEADER, TEXT, full) out
                         // of it and frame it as a literal (RFC 9051 §4.1.2).
@@ -761,10 +940,7 @@ impl<S: AsyncRead + AsyncWrite + Unpin> ImapSession<S> {
                             .and_then(|v| v.as_str())
                             .unwrap_or_default()
                             .to_string();
-                        let raw = self
-                            .fetch_raw_blob(auth, &blob)
-                            .await
-                            .unwrap_or_default();
+                        let raw = self.fetch_raw_blob(auth, &blob).await.unwrap_or_default();
                         let bytes: Vec<u8> = if section.is_empty() {
                             raw
                         } else if section.eq_ignore_ascii_case("HEADER") {
@@ -782,14 +958,22 @@ impl<S: AsyncRead + AsyncWrite + Unpin> ImapSession<S> {
                             // TEXT and unknown sections: the full raw for now.
                             raw
                         };
-                        let item_name = if section.is_empty() { "BODY[]" } else { "BODY[HEADER]" };
+                        let item_name = if section.is_empty() {
+                            "BODY[]"
+                        } else {
+                            "BODY[HEADER]"
+                        };
                         lines.push(email8::imap_proto::fetch_literal(seq, item_name, &bytes));
                     }
                     FetchItem::Envelope => {
                         let env = format!(
                             "({} {})",
-                            meta.get("subject").and_then(|v| v.as_str()).unwrap_or("NIL"),
-                            meta.get("message_id").and_then(|v| v.as_str()).unwrap_or("NIL"),
+                            meta.get("subject")
+                                .and_then(|v| v.as_str())
+                                .unwrap_or("NIL"),
+                            meta.get("message_id")
+                                .and_then(|v| v.as_str())
+                                .unwrap_or("NIL"),
                         );
                         lines.push(email8::imap_proto::fetch_item(seq, "ENVELOPE", &env));
                     }
@@ -879,9 +1063,17 @@ impl<S: AsyncRead + AsyncWrite + Unpin> ImapSession<S> {
             let keywords = meta
                 .get("keywords")
                 .and_then(|v| v.as_array())
-                .map(|a| a.iter().filter_map(|k| k.as_str().map(String::from)).collect::<Vec<_>>())
+                .map(|a| {
+                    a.iter()
+                        .filter_map(|k| k.as_str().map(String::from))
+                        .collect::<Vec<_>>()
+                })
                 .unwrap_or_default();
-            let subject = meta.get("subject").and_then(|v| v.as_str()).unwrap_or("").to_lowercase();
+            let subject = meta
+                .get("subject")
+                .and_then(|v| v.as_str())
+                .unwrap_or("")
+                .to_lowercase();
             let from = meta
                 .get("metadata")
                 .and_then(|m| m.get("from"))
@@ -941,7 +1133,11 @@ impl<S: AsyncRead + AsyncWrite + Unpin> ImapSession<S> {
                 .to_lowercase();
             let from = meta
                 .as_ref()
-                .and_then(|m| m.get("metadata").and_then(|d| d.get("from")).and_then(|v| v.as_str()))
+                .and_then(|m| {
+                    m.get("metadata")
+                        .and_then(|d| d.get("from"))
+                        .and_then(|v| v.as_str())
+                })
                 .unwrap_or("")
                 .to_lowercase();
             let received = meta
@@ -961,10 +1157,13 @@ impl<S: AsyncRead + AsyncWrite + Unpin> ImapSession<S> {
                     rows.sort_by(|a, b| a.4.cmp(&b.4))
                 }
                 // SIZE / CC / TO approximated by sequence (stable).
-                _ => rows.sort_by(|a, b| a.0.cmp(&b.0)),
+                _ => rows.sort_by_key(|a| a.0),
             }
         }
-        Ok(rows.into_iter().map(|(seq, uid, _, _, _)| (seq, uid)).collect())
+        Ok(rows
+            .into_iter()
+            .map(|(seq, uid, _, _, _)| (seq, uid))
+            .collect())
     }
 
     /// RFC 5256 THREAD — group the search hits into threads. The
@@ -1022,7 +1221,11 @@ impl<S: AsyncRead + AsyncWrite + Unpin> ImapSession<S> {
 
     /// Fetch one email's metadata via the Store per-email endpoint
     /// (shared by SEARCH/SORT/THREAD).
-    async fn fetch_email_meta(&self, auth: &AccessAuth, email_id: Uuid) -> Option<serde_json::Value> {
+    async fn fetch_email_meta(
+        &self,
+        auth: &AccessAuth,
+        email_id: Uuid,
+    ) -> Option<serde_json::Value> {
         let client = crate::store_http::store_client().await;
         let url = format!(
             "{}/v1/internal/email/{}/{}/{email_id}",
@@ -1065,7 +1268,10 @@ impl<S: AsyncRead + AsyncWrite + Unpin> ImapSession<S> {
         let ids: Vec<Uuid> = targets.iter().map(|(_, id, _)| *id).collect();
         // Membership add via the internal endpoint.
         let client = crate::store_http::store_client().await;
-        let url = format!("{}/v1/internal/emails/copy", self.config.store_url.trim_end_matches('/'));
+        let url = format!(
+            "{}/v1/internal/emails/copy",
+            self.config.store_url.trim_end_matches('/')
+        );
         let resp = client
             .post(&url)
             .json(&serde_json::json!({
@@ -1081,7 +1287,8 @@ impl<S: AsyncRead + AsyncWrite + Unpin> ImapSession<S> {
             return Err(format!("copy returned {}", resp.status()));
         }
         if is_move {
-            self.store_destroy_emails_pub(auth, src_mailbox, &ids).await?;
+            self.store_destroy_emails_pub(auth, src_mailbox, &ids)
+                .await?;
         }
         Ok(())
     }
@@ -1118,7 +1325,10 @@ impl<S: AsyncRead + AsyncWrite + Unpin> ImapSession<S> {
         use base64::Engine;
         let raw_b64 = base64::engine::general_purpose::STANDARD.encode(raw);
         let client = crate::store_http::store_client().await;
-        let url = format!("{}/v1/internal/ingest/append", self.config.store_url.trim_end_matches('/'));
+        let url = format!(
+            "{}/v1/internal/ingest/append",
+            self.config.store_url.trim_end_matches('/')
+        );
         let resp = client
             .post(&url)
             .json(&serde_json::json!({
@@ -1154,7 +1364,10 @@ impl<S: AsyncRead + AsyncWrite + Unpin> ImapSession<S> {
         ids: &[Uuid],
     ) -> Result<(), String> {
         let client = crate::store_http::store_client().await;
-        let url = format!("{}/v1/internal/emails/destroy", self.config.store_url.trim_end_matches('/'));
+        let url = format!(
+            "{}/v1/internal/emails/destroy",
+            self.config.store_url.trim_end_matches('/')
+        );
         let resp = client
             .post(&url)
             .json(&serde_json::json!({
@@ -1189,7 +1402,10 @@ fn pattern_match(pattern: &str, name: &str) -> bool {
     }
     if pattern.contains('%') {
         let pat = pattern.replace('%', "");
-        return name.replace('/', "").to_lowercase().contains(&pat.to_lowercase());
+        return name
+            .replace('/', "")
+            .to_lowercase()
+            .contains(&pat.to_lowercase());
     }
     name.eq_ignore_ascii_case(pattern)
 }

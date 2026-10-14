@@ -46,8 +46,7 @@ pub async fn verify(
     let mut headers = axum::http::HeaderMap::new();
     let _ = headers.insert(
         axum::http::header::AUTHORIZATION,
-        axum::http::HeaderValue::from_str(&format!("Bearer {token}"))
-            .map_err(|e| e.to_string())?,
+        axum::http::HeaderValue::from_str(&format!("Bearer {token}")).map_err(|e| e.to_string())?,
     );
     let ctx = sentin8::auth::client::verify_bearer_token(&config.sentin8_auth_client, &headers)
         .await
@@ -85,5 +84,9 @@ pub async fn verify(
     .await
     .map_err(|_| "no mailbox account for this user (provisioning pending)".to_string())?;
 
-    Ok(AccessAuth { user_sub: sub, env_id, account_id: account_id.0 })
+    Ok(AccessAuth {
+        user_sub: sub,
+        env_id,
+        account_id: account_id.0,
+    })
 }

@@ -39,7 +39,15 @@ impl<S: AsyncRead + AsyncWrite + Unpin> Pop3Session<S> {
         pool: sqlx::PgPool,
         engine: std::sync::Arc<sentin8::shield::PolicyEngine>,
     ) -> Self {
-        Self { stream, config, pool, engine, auth: None, inbox: Vec::new(), deleted: Vec::new() }
+        Self {
+            stream,
+            config,
+            pool,
+            engine,
+            auth: None,
+            inbox: Vec::new(),
+            deleted: Vec::new(),
+        }
     }
 
     pub async fn run(mut self) -> std::io::Result<()> {
@@ -63,14 +71,18 @@ impl<S: AsyncRead + AsyncWrite + Unpin> Pop3Session<S> {
                     self.stream.read(&mut chunk),
                 )
                 .await
-                .map_err(|_| std::io::Error::new(std::io::ErrorKind::TimedOut, "session timed out"))??;
+                .map_err(|_| {
+                    std::io::Error::new(std::io::ErrorKind::TimedOut, "session timed out")
+                })??;
                 if n == 0 {
                     return Ok(());
                 }
                 buf.extend_from_slice(&chunk[..n]);
             };
             let mut words = line.split_whitespace();
-            let Some(cmd) = words.next().map(|c| c.to_ascii_uppercase()) else { continue };
+            let Some(cmd) = words.next().map(|c| c.to_ascii_uppercase()) else {
+                continue;
+            };
             let arg1 = words.next();
             let arg2 = words.next();
             match cmd.as_str() {
@@ -87,10 +99,12 @@ impl<S: AsyncRead + AsyncWrite + Unpin> Pop3Session<S> {
                 }
                 "STLS" => {
                     // TLS wrap is listener-owned (platform gap G1).
-                    self.write_line("-ERR TLS upgrade requires the platform raw-TCP TLS mode").await?;
+                    self.write_line("-ERR TLS upgrade requires the platform raw-TCP TLS mode")
+                        .await?;
                 }
                 "AUTH" => {
-                    self.write_line("-ERR Use USER/PASS with the platform token").await?;
+                    self.write_line("-ERR Use USER/PASS with the platform token")
+                        .await?;
                 }
                 "USER" => {
                     let Some(_user) = arg1 else {
@@ -106,7 +120,15 @@ impl<S: AsyncRead + AsyncWrite + Unpin> Pop3Session<S> {
                         self.write_line("-ERR PASS requires the token").await?;
                         continue;
                     };
-                    match crate::auth::verify(&self.pool, &self.config, &self.engine, token, "email8:mail:read").await {
+                    match crate::auth::verify(
+                        &self.pool,
+                        &self.config,
+                        &self.engine,
+                        token,
+                        "email8:mail:read",
+                    )
+                    .await
+                    {
                         Ok(a) => {
                             self.auth = Some(a);
                             self.reload_inbox().await;
@@ -147,38 +169,41 @@ impl<S: AsyncRead + AsyncWrite + Unpin> Pop3Session<S> {
                     }
                     self.write_line(".").await?;
                 }
-                "UIDL" if self.auth.is_some() => {
-                    match arg1 {
-                        None => {
-                            self.write_line("+OK").await?;
-                            let inbox = self.inbox.clone();
-                            for (idx, (email_id, uid, _)) in inbox.iter().enumerate() {
-                                if self.deleted.contains(&idx) {
-                                    continue;
-                                }
-                                self.write_line(&format!("{} {}", idx + 1, uidl(*email_id, *uid)))
-                                    .await?;
+                "UIDL" if self.auth.is_some() => match arg1 {
+                    None => {
+                        self.write_line("+OK").await?;
+                        let inbox = self.inbox.clone();
+                        for (idx, (email_id, uid, _)) in inbox.iter().enumerate() {
+                            if self.deleted.contains(&idx) {
+                                continue;
                             }
-                            self.write_line(".").await?;
+                            self.write_line(&format!("{} {}", idx + 1, uidl(*email_id, *uid)))
+                                .await?;
                         }
-                        Some(n) => match self.msg_index(n) {
-                            Some(idx) => {
-                                let (email_id, uid, _) = self.inbox[idx];
-                                self.write_line(&format!("+OK {} {}", idx + 1, uidl(email_id, uid)))
-                                    .await?;
-                            }
-                            None => self.write_line("-ERR no such message").await?,
-                        },
+                        self.write_line(".").await?;
                     }
-                }
+                    Some(n) => match self.msg_index(n) {
+                        Some(idx) => {
+                            let (email_id, uid, _) = self.inbox[idx];
+                            self.write_line(&format!("+OK {} {}", idx + 1, uidl(email_id, uid)))
+                                .await?;
+                        }
+                        None => self.write_line("-ERR no such message").await?,
+                    },
+                },
                 "RETR" if self.auth.is_some() => {
                     let Some(n) = arg1 else {
-                        self.write_line("-ERR RETR requires a message number").await?;
+                        self.write_line("-ERR RETR requires a message number")
+                            .await?;
                         continue;
                     };
-                    match self.fetch_raw(self.inbox.get(self.msg_index(n).unwrap_or(usize::MAX))).await {
+                    match self
+                        .fetch_raw(self.inbox.get(self.msg_index(n).unwrap_or(usize::MAX)))
+                        .await
+                    {
                         Ok(Some(raw)) => {
-                            self.write_line(&format!("+OK {} octets", raw.len())).await?;
+                            self.write_line(&format!("+OK {} octets", raw.len()))
+                                .await?;
                             // Dot-stuffing + terminator.
                             self.write_dotted(&raw).await?;
                         }
@@ -194,7 +219,10 @@ impl<S: AsyncRead + AsyncWrite + Unpin> Pop3Session<S> {
                         self.write_line("-ERR bad k").await?;
                         continue;
                     };
-                    match self.fetch_raw(self.inbox.get(self.msg_index(n).unwrap_or(usize::MAX))).await {
+                    match self
+                        .fetch_raw(self.inbox.get(self.msg_index(n).unwrap_or(usize::MAX)))
+                        .await
+                    {
                         Ok(Some(raw)) => {
                             self.write_line("+OK").await?;
                             let window = top_window(&raw, k);
@@ -205,7 +233,8 @@ impl<S: AsyncRead + AsyncWrite + Unpin> Pop3Session<S> {
                 }
                 "DELE" if self.auth.is_some() => {
                     let Some(n) = arg1 else {
-                        self.write_line("-ERR DELE requires a message number").await?;
+                        self.write_line("-ERR DELE requires a message number")
+                            .await?;
                         continue;
                     };
                     match self.msg_index(n) {
@@ -232,7 +261,12 @@ impl<S: AsyncRead + AsyncWrite + Unpin> Pop3Session<S> {
                     return Ok(());
                 }
                 _ => {
-                    if self.auth.is_none() && !matches!(cmd.as_str(), "CAPA" | "QUIT" | "NOOP" | "STLS" | "USER" | "PASS" | "AUTH") {
+                    if self.auth.is_none()
+                        && !matches!(
+                            cmd.as_str(),
+                            "CAPA" | "QUIT" | "NOOP" | "STLS" | "USER" | "PASS" | "AUTH"
+                        )
+                    {
                         self.write_line("-ERR Authenticate first").await?;
                     } else {
                         self.write_line("-ERR Unknown command").await?;
@@ -257,8 +291,12 @@ impl<S: AsyncRead + AsyncWrite + Unpin> Pop3Session<S> {
 
     /// Fetch a raw message from the Store data API.
     async fn fetch_raw(&self, entry: Option<&(Uuid, i64, i64)>) -> Result<Option<Vec<u8>>, ()> {
-        let Some(auth) = &self.auth else { return Ok(None) };
-        let Some((email_id, _, _)) = entry else { return Ok(None) };
+        let Some(auth) = &self.auth else {
+            return Ok(None);
+        };
+        let Some((email_id, _, _)) = entry else {
+            return Ok(None);
+        };
         let client = crate::store_http::store_client().await;
         let url = format!(
             "{}/v1/internal/email/{}/{}/{email_id}",
@@ -266,11 +304,7 @@ impl<S: AsyncRead + AsyncWrite + Unpin> Pop3Session<S> {
             auth.env_id,
             auth.account_id
         );
-        let resp = client
-            .get(&url)
-            .send()
-            .await
-            .map_err(|_| ())?;
+        let resp = client.get(&url).send().await.map_err(|_| ())?;
         if !resp.status().is_success() {
             return Ok(None);
         }
@@ -341,7 +375,9 @@ fn uidl(email_id: Uuid, uid: i64) -> String {
 
 /// The TOP n k window: headers + first k body lines.
 fn top_window(raw: &[u8], k: usize) -> Vec<u8> {
-    let split = memchr::memmem::find(raw, b"\r\n\r\n").map(|p| p + 4).unwrap_or(raw.len());
+    let split = memchr::memmem::find(raw, b"\r\n\r\n")
+        .map(|p| p + 4)
+        .unwrap_or(raw.len());
     let (headers, body) = raw.split_at(split.min(raw.len()));
     let mut out = headers.to_vec();
     for (i, line) in body.split(|&b| b == b'\n').enumerate() {
@@ -355,7 +391,10 @@ fn top_window(raw: &[u8], k: usize) -> Vec<u8> {
 }
 
 /// Fetch the INBOX listing (id, uid, size) via the Store data API.
-async fn fetch_inbox(session: &Pop3Session<impl AsyncRead + AsyncWrite + Unpin>, auth: &AccessAuth) -> Vec<(Uuid, i64, i64)> {
+async fn fetch_inbox(
+    session: &Pop3Session<impl AsyncRead + AsyncWrite + Unpin>,
+    auth: &AccessAuth,
+) -> Vec<(Uuid, i64, i64)> {
     let client = crate::store_http::store_client().await;
     let url = format!(
         "{}/v1/internal/mailbox/emails?env_id={}&account_id={}&mailbox_id=0",

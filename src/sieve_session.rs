@@ -36,7 +36,16 @@ impl<S: AsyncRead + AsyncWrite + Unpin> SieveSession<S> {
         pool: sqlx::PgPool,
         engine: std::sync::Arc<sentin8::shield::PolicyEngine>,
     ) -> Self {
-        Self { stream, config, pool, engine, auth: None, literal: None, buffer: Vec::new(), pending_script: None }
+        Self {
+            stream,
+            config,
+            pool,
+            engine,
+            auth: None,
+            literal: None,
+            buffer: Vec::new(),
+            pending_script: None,
+        }
     }
 
     pub async fn run(mut self) -> std::io::Result<()> {
@@ -69,7 +78,9 @@ impl<S: AsyncRead + AsyncWrite + Unpin> SieveSession<S> {
                     self.stream.read(&mut chunk[..window_len]),
                 )
                 .await
-                .map_err(|_| std::io::Error::new(std::io::ErrorKind::TimedOut, "literal timed out"))??;
+                .map_err(|_| {
+                    std::io::Error::new(std::io::ErrorKind::TimedOut, "literal timed out")
+                })??;
                 if got == 0 {
                     return Ok(());
                 }
@@ -85,7 +96,9 @@ impl<S: AsyncRead + AsyncWrite + Unpin> SieveSession<S> {
                 self.stream.read(&mut chunk),
             )
             .await
-            .map_err(|_| std::io::Error::new(std::io::ErrorKind::TimedOut, "session timed out"))??;
+            .map_err(|_| {
+                std::io::Error::new(std::io::ErrorKind::TimedOut, "session timed out")
+            })??;
             if got == 0 {
                 return Ok(());
             }
@@ -135,7 +148,15 @@ impl<S: AsyncRead + AsyncWrite + Unpin> SieveSession<S> {
                 }
                 let token = crate::auth::decode_xoauth2(&b64).unwrap_or_default();
                 let _ = mechanism;
-                match crate::auth::verify(&self.pool, &self.config, &self.engine, &token, "email8:sieve:manage").await {
+                match crate::auth::verify(
+                    &self.pool,
+                    &self.config,
+                    &self.engine,
+                    &token,
+                    "email8:sieve:manage",
+                )
+                .await
+                {
                     Ok(a) => {
                         self.auth = Some(a);
                         self.write_line("OK").await?;
@@ -163,7 +184,7 @@ impl<S: AsyncRead + AsyncWrite + Unpin> SieveSession<S> {
                 }
                 Err(e) => self.write_line(&format!("NO \"{e}\"")).await?,
             },
-            "GETSCRIPT" => match self.store_get_script(&rest.trim_matches('"')).await {
+            "GETSCRIPT" => match self.store_get_script(rest.trim_matches('"')).await {
                 Ok(Some(script)) => {
                     // Literal response: {n+}\r\n<bytes>\r\nOK
                     self.write_line(&format!("{{{}}}", script.len())).await?;
@@ -171,12 +192,24 @@ impl<S: AsyncRead + AsyncWrite + Unpin> SieveSession<S> {
                     self.stream.write_all(b"\r\n").await?;
                     self.write_line("OK").await?;
                 }
-                _ => self.write_line("NO (NONEXISTENT) \"No such script\"").await?,
+                _ => {
+                    self.write_line("NO (NONEXISTENT) \"No such script\"")
+                        .await?
+                }
             },
             "PUTSCRIPT" => {
                 // PUTSCRIPT "name" {n}\r\n<bytes> — the literal follows.
-                let name = rest.split_whitespace().next().unwrap_or_default().trim_matches('"').to_string();
-                let Some(size_str) = rest.rsplit('{').next().and_then(|s| s.strip_suffix('+').or_else(|| s.strip_suffix('}'))) else {
+                let name = rest
+                    .split_whitespace()
+                    .next()
+                    .unwrap_or_default()
+                    .trim_matches('"')
+                    .to_string();
+                let Some(size_str) = rest
+                    .rsplit('{')
+                    .next()
+                    .and_then(|s| s.strip_suffix('+').or_else(|| s.strip_suffix('}')))
+                else {
                     self.write_line("NO \"Expected {n+} literal\"").await?;
                     return Ok(false);
                 };
@@ -186,12 +219,19 @@ impl<S: AsyncRead + AsyncWrite + Unpin> SieveSession<S> {
                         self.literal = Some((n, Vec::with_capacity(n)));
                         self.write_line("OK").await?; // ready-for-literal
                     }
-                    _ => self.write_line("NO (QUOTA/MAXSIZE) \"Script too large\"").await?,
+                    _ => {
+                        self.write_line("NO (QUOTA/MAXSIZE) \"Script too large\"")
+                            .await?
+                    }
                 }
             }
             "CHECKSCRIPT" => {
                 // Same literal flow; compiled then discarded.
-                let Some(size_str) = rest.rsplit('{').next().and_then(|s| s.strip_suffix('+').or_else(|| s.strip_suffix('}'))) else {
+                let Some(size_str) = rest
+                    .rsplit('{')
+                    .next()
+                    .and_then(|s| s.strip_suffix('+').or_else(|| s.strip_suffix('}')))
+                else {
                     self.write_line("NO \"Expected {n+} literal\"").await?;
                     return Ok(false);
                 };
@@ -201,7 +241,10 @@ impl<S: AsyncRead + AsyncWrite + Unpin> SieveSession<S> {
                         self.literal = Some((n, Vec::with_capacity(n)));
                         self.write_line("OK").await?;
                     }
-                    _ => self.write_line("NO (QUOTA/MAXSIZE) \"Script too large\"").await?,
+                    _ => {
+                        self.write_line("NO (QUOTA/MAXSIZE) \"Script too large\"")
+                            .await?
+                    }
                 }
             }
             "SETACTIVE" => {
@@ -223,7 +266,10 @@ impl<S: AsyncRead + AsyncWrite + Unpin> SieveSession<S> {
                 let name = rest.trim_matches('"');
                 match self.store_delete_script(name).await {
                     Ok(true) => self.write_line("OK").await?,
-                    Ok(false) => self.write_line("NO (NONEXISTENT) \"No such script\"").await?,
+                    Ok(false) => {
+                        self.write_line("NO (NONEXISTENT) \"No such script\"")
+                            .await?
+                    }
                     Err(e) => self.write_line(&format!("NO \"{e}\"")).await?,
                 }
             }
@@ -262,7 +308,8 @@ impl<S: AsyncRead + AsyncWrite + Unpin> SieveSession<S> {
             }
             Err(e) => {
                 self.pending_script = None;
-                self.write_line(&format!("NO \"Script compile failed: {e}\"")).await?;
+                self.write_line(&format!("NO \"Script compile failed: {e}\""))
+                    .await?;
             }
         }
         Ok(())
@@ -272,7 +319,11 @@ impl<S: AsyncRead + AsyncWrite + Unpin> SieveSession<S> {
         self.stream.write_all(format!("{s}\r\n").as_bytes()).await
     }
 
-    async fn store_call(&self, path: &str, body: serde_json::Value) -> Result<reqwest::Response, String> {
+    async fn store_call(
+        &self,
+        path: &str,
+        body: serde_json::Value,
+    ) -> Result<reqwest::Response, String> {
         let auth = self.auth.as_ref().ok_or("not authenticated")?;
         let url = format!("{}{path}", self.config.store_url.trim_end_matches('/'));
         let mut envelope = serde_json::json!({
@@ -295,7 +346,9 @@ impl<S: AsyncRead + AsyncWrite + Unpin> SieveSession<S> {
     }
 
     async fn store_list_scripts(&self) -> Result<Vec<(String, bool)>, String> {
-        let resp = self.store_call("/v1/internal/sieve/list", serde_json::json!({})).await?;
+        let resp = self
+            .store_call("/v1/internal/sieve/list", serde_json::json!({}))
+            .await?;
         let body: serde_json::Value = resp.json().await.map_err(|e| e.to_string())?;
         Ok(body
             .get("items")
@@ -305,7 +358,9 @@ impl<S: AsyncRead + AsyncWrite + Unpin> SieveSession<S> {
                     .filter_map(|s| {
                         Some((
                             s.get("name")?.as_str()?.to_string(),
-                            s.get("is_active").and_then(|v| v.as_bool()).unwrap_or(false),
+                            s.get("is_active")
+                                .and_then(|v| v.as_bool())
+                                .unwrap_or(false),
                         ))
                     })
                     .collect()
@@ -315,7 +370,10 @@ impl<S: AsyncRead + AsyncWrite + Unpin> SieveSession<S> {
 
     async fn store_get_script(&self, name: &str) -> Result<Option<Vec<u8>>, String> {
         let resp = self
-            .store_call("/v1/internal/sieve/get", serde_json::json!({ "name": name }))
+            .store_call(
+                "/v1/internal/sieve/get",
+                serde_json::json!({ "name": name }),
+            )
             .await?;
         let body: serde_json::Value = resp.json().await.map_err(|e| e.to_string())?;
         let Some(script) = body.get("source").and_then(|v| v.as_str()) else {
@@ -324,9 +382,17 @@ impl<S: AsyncRead + AsyncWrite + Unpin> SieveSession<S> {
         Ok(Some(script.as_bytes().to_vec()))
     }
 
-    async fn store_put_script(&self, name: &str, source: &str, _script: &email8::sieve::Script) -> Result<(), String> {
+    async fn store_put_script(
+        &self,
+        name: &str,
+        source: &str,
+        _script: &email8::sieve::Script,
+    ) -> Result<(), String> {
         let resp = self
-            .store_call("/v1/internal/sieve/put", serde_json::json!({ "name": name, "source": source }))
+            .store_call(
+                "/v1/internal/sieve/put",
+                serde_json::json!({ "name": name, "source": source }),
+            )
             .await?;
         if resp.status().is_success() {
             Ok(())
@@ -337,7 +403,10 @@ impl<S: AsyncRead + AsyncWrite + Unpin> SieveSession<S> {
 
     async fn store_set_active(&self, name: Option<&str>) -> Result<(), String> {
         let resp = self
-            .store_call("/v1/internal/sieve/setactive", serde_json::json!({ "name": name }))
+            .store_call(
+                "/v1/internal/sieve/setactive",
+                serde_json::json!({ "name": name }),
+            )
             .await?;
         if resp.status().is_success() {
             Ok(())
@@ -348,14 +417,20 @@ impl<S: AsyncRead + AsyncWrite + Unpin> SieveSession<S> {
 
     async fn store_delete_script(&self, name: &str) -> Result<bool, String> {
         let resp = self
-            .store_call("/v1/internal/sieve/delete", serde_json::json!({ "name": name }))
+            .store_call(
+                "/v1/internal/sieve/delete",
+                serde_json::json!({ "name": name }),
+            )
             .await?;
         Ok(resp.status().is_success())
     }
 
     async fn store_rename_script(&self, from: &str, to: &str) -> Result<(), String> {
         let resp = self
-            .store_call("/v1/internal/sieve/rename", serde_json::json!({ "from": from, "to": to }))
+            .store_call(
+                "/v1/internal/sieve/rename",
+                serde_json::json!({ "from": from, "to": to }),
+            )
             .await?;
         if resp.status().is_success() {
             Ok(())

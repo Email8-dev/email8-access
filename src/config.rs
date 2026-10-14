@@ -39,7 +39,9 @@ impl AccessConfig {
             port: env_u16("EMAIL8_ACCESS_PORT", 0),
             database_url: env_string("EMAIL8_ACCESS_DATABASE_URL")
                 .or_else(|| env_string("DATABASE_URL"))
-                .unwrap_or_else(|| sentin8::config::Sentin8Config::default_database_url().to_string()),
+                .unwrap_or_else(|| {
+                    sentin8::config::Sentin8Config::default_database_url().to_string()
+                }),
             store_url: env_string("EMAIL8_STORE_URL")
                 .unwrap_or_else(|| format!("https://{}", cfg.platform_domain("email8-store"))),
             sentin8_storage_url: env_string("SENTIN8_STORAGE_URL")
@@ -50,14 +52,31 @@ impl AccessConfig {
             // Each instance publishes its actual listener map to Valkey
             // (gate reads it). EMAIL8_ACCESS_*_PORT env (dev direct-bind
             // mode) pins a port explicitly.
-            imap: ProtoListener { port: env_u16("EMAIL8_ACCESS_IMAP_PORT", 0), implicit_tls: false },
-            imaps: ProtoListener { port: env_u16("EMAIL8_ACCESS_IMAPS_PORT", 0), implicit_tls: true },
-            pop3: ProtoListener { port: env_u16("EMAIL8_ACCESS_POP3_PORT", 0), implicit_tls: false },
-            pop3s: ProtoListener { port: env_u16("EMAIL8_ACCESS_POP3S_PORT", 0), implicit_tls: true },
-            sieve: ProtoListener { port: env_u16("EMAIL8_ACCESS_SIEVE_PORT", 0), implicit_tls: false },
+            imap: ProtoListener {
+                port: env_u16("EMAIL8_ACCESS_IMAP_PORT", 0),
+                implicit_tls: false,
+            },
+            imaps: ProtoListener {
+                port: env_u16("EMAIL8_ACCESS_IMAPS_PORT", 0),
+                implicit_tls: true,
+            },
+            pop3: ProtoListener {
+                port: env_u16("EMAIL8_ACCESS_POP3_PORT", 0),
+                implicit_tls: false,
+            },
+            pop3s: ProtoListener {
+                port: env_u16("EMAIL8_ACCESS_POP3S_PORT", 0),
+                implicit_tls: true,
+            },
+            sieve: ProtoListener {
+                port: env_u16("EMAIL8_ACCESS_SIEVE_PORT", 0),
+                implicit_tls: false,
+            },
             valkey_url: env_string("VALKEY_URL")
                 .or_else(|| env_string("SENTIN8_VALKEY_URL"))
-                .unwrap_or_else(|| sentin8::config::Sentin8Config::default_valkey_url().to_string()),
+                .unwrap_or_else(|| {
+                    sentin8::config::Sentin8Config::default_valkey_url().to_string()
+                }),
             sentin8_auth_client: AuthClient::new(ClientOptions {
                 base_url: env_string("SENTIN8_AUTH_ISSUER")
                     .unwrap_or_else(|| cfg.sentin8_auth_issuer()),
@@ -78,5 +97,8 @@ fn env_string(key: &str) -> Option<String> {
 }
 
 fn env_u16(key: &str, default: u16) -> u16 {
-    std::env::var(key).ok().and_then(|s| s.parse().ok()).unwrap_or(default)
+    std::env::var(key)
+        .ok()
+        .and_then(|s| s.parse().ok())
+        .unwrap_or(default)
 }

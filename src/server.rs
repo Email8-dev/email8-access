@@ -26,7 +26,11 @@ pub struct AppState {
 pub async fn build_state(core: sentin8::shell::ServiceCore) -> anyhow::Result<AppState> {
     let config = Arc::new(AccessConfig::from_env());
     let core = std::sync::Arc::new(core);
-    let state = AppState { config: config.clone(), pool: core.pool.clone(), core };
+    let state = AppState {
+        config: config.clone(),
+        pool: core.pool.clone(),
+        core,
+    };
 
     // Sentin8:Policy (Phase 28, §4.2b — shell-owned boot): the shell's
     // boot step 8 already booted the engine (refuse-to-start, shared deps,
@@ -37,11 +41,61 @@ pub async fn build_state(core: sentin8::shell::ServiceCore) -> anyhow::Result<Ap
     // its actual listener map to Valkey for gate discovery). An env-pinned
     // port (dev direct-bind mode) is honored as-is.
     let mut bound = Vec::new();
-    bound.extend(spawn_listener(config.clone(), state.pool.clone(), state.core.admin.policy.clone(), config.imap, Proto::Imap, "imap").await?);
-    bound.extend(spawn_listener(config.clone(), state.pool.clone(), state.core.admin.policy.clone(), config.imaps, Proto::Imaps, "imaps").await?);
-    bound.extend(spawn_listener(config.clone(), state.pool.clone(), state.core.admin.policy.clone(), config.pop3, Proto::Pop3, "pop3").await?);
-    bound.extend(spawn_listener(config.clone(), state.pool.clone(), state.core.admin.policy.clone(), config.pop3s, Proto::Pop3s, "pop3s").await?);
-    bound.extend(spawn_listener(config.clone(), state.pool.clone(), state.core.admin.policy.clone(), config.sieve, Proto::Sieve, "sieve").await?);
+    bound.extend(
+        spawn_listener(
+            config.clone(),
+            state.pool.clone(),
+            state.core.admin.policy.clone(),
+            config.imap,
+            Proto::Imap,
+            "imap",
+        )
+        .await?,
+    );
+    bound.extend(
+        spawn_listener(
+            config.clone(),
+            state.pool.clone(),
+            state.core.admin.policy.clone(),
+            config.imaps,
+            Proto::Imaps,
+            "imaps",
+        )
+        .await?,
+    );
+    bound.extend(
+        spawn_listener(
+            config.clone(),
+            state.pool.clone(),
+            state.core.admin.policy.clone(),
+            config.pop3,
+            Proto::Pop3,
+            "pop3",
+        )
+        .await?,
+    );
+    bound.extend(
+        spawn_listener(
+            config.clone(),
+            state.pool.clone(),
+            state.core.admin.policy.clone(),
+            config.pop3s,
+            Proto::Pop3s,
+            "pop3s",
+        )
+        .await?,
+    );
+    bound.extend(
+        spawn_listener(
+            config.clone(),
+            state.pool.clone(),
+            state.core.admin.policy.clone(),
+            config.sieve,
+            Proto::Sieve,
+            "sieve",
+        )
+        .await?,
+    );
 
     // Publish the actual listener map for the gate (best-effort).
     let instance_key = format!(
@@ -81,16 +135,17 @@ pub async fn strip_proxy_v2<S: tokio::io::AsyncRead + Unpin>(
         return Ok(None);
     }
     let mut head = [0u8; 16];
-    stream
-        .read_exact(&mut head)
-        .await
-        .map_err(|_| email8::gate::contracts::proxy_parse::ProxyV2Error::Truncated { needed: 16, got: 0 })?;
+    stream.read_exact(&mut head).await.map_err(|_| {
+        email8::gate::contracts::proxy_parse::ProxyV2Error::Truncated { needed: 16, got: 0 }
+    })?;
     let addr_len = u16::from_be_bytes([head[14], head[15]]) as usize;
     let mut block = vec![0u8; addr_len];
-    stream
-        .read_exact(&mut block)
-        .await
-        .map_err(|_| email8::gate::contracts::proxy_parse::ProxyV2Error::Truncated { needed: addr_len, got: 0 })?;
+    stream.read_exact(&mut block).await.map_err(|_| {
+        email8::gate::contracts::proxy_parse::ProxyV2Error::Truncated {
+            needed: addr_len,
+            got: 0,
+        }
+    })?;
     let mut full = Vec::with_capacity(16 + addr_len);
     full.extend_from_slice(&head);
     full.extend_from_slice(&block);
@@ -122,7 +177,12 @@ async fn spawn_listener(
     let bound_port = listener.local_addr()?.port();
     let cfg = config.clone();
     tokio::spawn(async move {
-        tracing::info!(port = bound_port, ?proto, implicit_tls = spec.implicit_tls, "email8:access: listener bound");
+        tracing::info!(
+            port = bound_port,
+            ?proto,
+            implicit_tls = spec.implicit_tls,
+            "email8:access: listener bound"
+        );
         loop {
             match listener.accept().await {
                 Ok((socket, _peer)) => {
@@ -132,25 +192,29 @@ async fn spawn_listener(
                     tokio::spawn(async move {
                         match proto {
                             Proto::Imap => {
-                                let session =
-                                    crate::imap_session::ImapSession::new(socket, cfg, pool, engine);
+                                let session = crate::imap_session::ImapSession::new(
+                                    socket, cfg, pool, engine,
+                                );
                                 let _ = session.run().await;
                             }
                             // POP3 (RFC 1939/2449) + ManageSieve (RFC 5804)
                             // — full protocol surfaces over Store's data API.
                             Proto::Pop3 | Proto::Pop3s => {
-                                let session =
-                                    crate::pop3_session::Pop3Session::new(socket, cfg, pool, engine);
+                                let session = crate::pop3_session::Pop3Session::new(
+                                    socket, cfg, pool, engine,
+                                );
                                 let _ = session.run().await;
                             }
                             Proto::Imaps => {
-                                let session =
-                                    crate::imap_session::ImapSession::new(socket, cfg, pool, engine);
+                                let session = crate::imap_session::ImapSession::new(
+                                    socket, cfg, pool, engine,
+                                );
                                 let _ = session.run().await;
                             }
                             Proto::Sieve => {
-                                let session =
-                                    crate::sieve_session::SieveSession::new(socket, cfg, pool, engine);
+                                let session = crate::sieve_session::SieveSession::new(
+                                    socket, cfg, pool, engine,
+                                );
                                 let _ = session.run().await;
                             }
                         }
@@ -160,11 +224,13 @@ async fn spawn_listener(
             }
         }
     });
-    Ok(vec![email8::gate::contracts::listener_registry::BoundListener {
-        proto: proto_name,
-        port: bound_port,
-        implicit_tls: spec.implicit_tls,
-    }])
+    Ok(vec![
+        email8::gate::contracts::listener_registry::BoundListener {
+            proto: proto_name,
+            port: bound_port,
+            implicit_tls: spec.implicit_tls,
+        },
+    ])
 }
 
 pub fn routes(router: axum::Router<AppState>) -> axum::Router<AppState> {
@@ -182,35 +248,59 @@ pub fn routes(router: axum::Router<AppState>) -> axum::Router<AppState> {
             "/dav/{*path}",
             axum::routing::any(crate::dav::dispatch).options(crate::dav::dispatch),
         )
-        .route("/dav", axum::routing::any(crate::dav::dispatch_root).options(crate::dav::dispatch_root))
-        .route("/dav/", axum::routing::any(crate::dav::dispatch_root).options(crate::dav::dispatch_root))
+        .route(
+            "/dav",
+            axum::routing::any(crate::dav::dispatch_root).options(crate::dav::dispatch_root),
+        )
+        .route(
+            "/dav/",
+            axum::routing::any(crate::dav::dispatch_root).options(crate::dav::dispatch_root),
+        )
         // ── Sentin8:Policy admin API (Phase 28 §3.6 — shared
         // implementation; handlers generic over this state via
         // HasPolicyAdmin).
-        .route("/v1/admin/policy-sets",
-            get(sentin8::shield::admin::list_policy_sets::<AppState>))
-        .route("/v1/admin/policy-sets/{name}",
+        .route(
+            "/v1/admin/policy-sets",
+            get(sentin8::shield::admin::list_policy_sets::<AppState>),
+        )
+        .route(
+            "/v1/admin/policy-sets/{name}",
             get(sentin8::shield::admin::get_policy_set::<AppState>)
                 .put(sentin8::shield::admin::put_policy_set::<AppState>)
-                .delete(sentin8::shield::admin::delete_policy_set::<AppState>))
-        .route("/v1/admin/policy-sets/{name}/test",
-            post(sentin8::shield::admin::test_policy_set::<AppState>))
-        .route("/v1/admin/policy-sets/enforce",
-            post(sentin8::shield::admin::admin_enforce_policy_set::<AppState>))
-        .route("/v1/admin/policy-sets/shadow",
-            post(sentin8::shield::admin::admin_shadow_policy_set::<AppState>))
-        .route("/v1/admin/policy-sets/disable",
-            post(sentin8::shield::admin::admin_disable_policy_set::<AppState>))
-        .route("/v1/admin/relations",
+                .delete(sentin8::shield::admin::delete_policy_set::<AppState>),
+        )
+        .route(
+            "/v1/admin/policy-sets/{name}/test",
+            post(sentin8::shield::admin::test_policy_set::<AppState>),
+        )
+        .route(
+            "/v1/admin/policy-sets/enforce",
+            post(sentin8::shield::admin::admin_enforce_policy_set::<AppState>),
+        )
+        .route(
+            "/v1/admin/policy-sets/shadow",
+            post(sentin8::shield::admin::admin_shadow_policy_set::<AppState>),
+        )
+        .route(
+            "/v1/admin/policy-sets/disable",
+            post(sentin8::shield::admin::admin_disable_policy_set::<AppState>),
+        )
+        .route(
+            "/v1/admin/relations",
             get(sentin8::shield::admin::list_relations::<AppState>)
                 .put(sentin8::shield::admin::put_relation::<AppState>)
-                .delete(sentin8::shield::admin::delete_relation::<AppState>))
-        .route("/v1/admin/relations/check",
-            get(sentin8::shield::admin::check_relation::<AppState>))
-        .route("/v1/admin/attributes",
+                .delete(sentin8::shield::admin::delete_relation::<AppState>),
+        )
+        .route(
+            "/v1/admin/relations/check",
+            get(sentin8::shield::admin::check_relation::<AppState>),
+        )
+        .route(
+            "/v1/admin/attributes",
             get(sentin8::shield::admin::list_attributes::<AppState>)
                 .put(sentin8::shield::admin::put_attribute::<AppState>)
-                .delete(sentin8::shield::admin::delete_attribute::<AppState>))
+                .delete(sentin8::shield::admin::delete_attribute::<AppState>),
+        )
 }
 
 /// Shared policy-admin surface accessor (Phase 28 §3.6): the boot

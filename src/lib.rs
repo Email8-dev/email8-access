@@ -6,7 +6,6 @@
 //! Sentin8 Email8:Access — library re-exports for integration tests.
 
 pub mod auth;
-pub mod store_http;
 pub mod config;
 pub mod dav;
 pub mod imap_session;
@@ -15,3 +14,4 @@ pub mod pop3_session;
 pub mod registration;
 pub mod server;
 pub mod sieve_session;
+pub mod store_http;

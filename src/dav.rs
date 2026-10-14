@@ -38,7 +38,14 @@ pub async fn dispatch_root(
     if let Err(resp) = dav_gate(&state, &headers).await {
         return resp;
     }
-    dispatch(State(state), headers, method, axum::extract::Path(String::new()), body).await
+    dispatch(
+        State(state),
+        headers,
+        method,
+        axum::extract::Path(String::new()),
+        body,
+    )
+    .await
 }
 
 /// The main DAV dispatcher: `/dav/{*path}` any-method.
@@ -75,10 +82,19 @@ pub async fn dispatch(
         return mkcol(&path).await;
     }
     if method == m_lock {
-        return lock_resource(&path, &body, headers.get("Timeout").and_then(|v| v.to_str().ok())).await;
+        return lock_resource(
+            &path,
+            &body,
+            headers.get("Timeout").and_then(|v| v.to_str().ok()),
+        )
+        .await;
     }
     if method == m_unlock {
-        return unlock_resource(&path, headers.get("Lock-Token").and_then(|v| v.to_str().ok())).await;
+        return unlock_resource(
+            &path,
+            headers.get("Lock-Token").and_then(|v| v.to_str().ok()),
+        )
+        .await;
     }
     if method == m_proppatch {
         return proppatch(&path, &body).await;
@@ -102,15 +118,10 @@ pub async fn dispatch(
 /// The step-5 DAV gate: verify the bearer, evaluate `email8:mail:write`
 /// (DAV methods mutate by default; reads pass because the mirror grants
 /// `email8:mail:write` holders the read action and vice versa).
-async fn dav_gate(
-    state: &AppState,
-    headers: &HeaderMap,
-) -> Result<(), Response> {
+async fn dav_gate(state: &AppState, headers: &HeaderMap) -> Result<(), Response> {
     let a = sentin8::shell::verify_token(&state.core.config, headers)
         .await
-        .map_err(|(_code, msg)| {
-            (axum::http::StatusCode::UNAUTHORIZED, msg).into_response()
-        })?;
+        .map_err(|(_code, msg)| (axum::http::StatusCode::UNAUTHORIZED, msg).into_response())?;
     sentin8::shell::policy::require(
         &state.core.admin.policy,
         &a,
@@ -152,8 +163,9 @@ struct ActiveLock {
 
 /// The process-wide lock registry (per Access instance).
 fn locks() -> &'static std::sync::Mutex<std::collections::HashMap<String, ActiveLock>> {
-    static LOCKS: std::sync::OnceLock<std::sync::Mutex<std::collections::HashMap<String, ActiveLock>>> =
-        std::sync::OnceLock::new();
+    static LOCKS: std::sync::OnceLock<
+        std::sync::Mutex<std::collections::HashMap<String, ActiveLock>>,
+    > = std::sync::OnceLock::new();
     LOCKS.get_or_init(Default::default)
 }
 
@@ -183,7 +195,12 @@ async fn lock_resource(path: &str, body: &[u8], timeout: Option<&str>) -> Respon
     let token = email8::dav_proto::new_lock_token();
     locks.insert(
         path.to_string(),
-        ActiveLock { token: token.clone(), owner, depth_infinity, expires_at: now + std::time::Duration::from_secs(ttl_secs) },
+        ActiveLock {
+            token: token.clone(),
+            owner,
+            depth_infinity,
+            expires_at: now + std::time::Duration::from_secs(ttl_secs),
+        },
     );
     let xml = format!(
         "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n\
@@ -214,13 +231,13 @@ async fn lock_resource(path: &str, body: &[u8], timeout: Option<&str>) -> Respon
 /// UNLOCK — remove the lock when the token matches (RFC 4918 §9.11).
 async fn unlock_resource(path: &str, lock_token: Option<&str>) -> Response {
     let Some(token) = lock_token else {
-        return (
-            StatusCode::BAD_REQUEST,
-            "missing Lock-Token header",
-        )
-            .into_response();
+        return (StatusCode::BAD_REQUEST, "missing Lock-Token header").into_response();
     };
-    let token = token.trim().trim_start_matches('<').trim_end_matches('>').to_string();
+    let token = token
+        .trim()
+        .trim_start_matches('<')
+        .trim_end_matches('>')
+        .to_string();
     let mut locks = locks().lock().unwrap();
     match locks.get(path) {
         Some(l) if l.token == token => {
@@ -228,11 +245,7 @@ async fn unlock_resource(path: &str, lock_token: Option<&str>) -> Response {
             StatusCode::NO_CONTENT.into_response()
         }
         Some(_) => StatusCode::CONFLICT.into_response(),
-        None => (
-            StatusCode::CONFLICT,
-            "no lock on resource",
-        )
-            .into_response(),
+        None => (StatusCode::CONFLICT, "no lock on resource").into_response(),
     }
 }
 
@@ -314,19 +327,30 @@ fn parse_proppatch(body: &[u8]) -> Vec<(String, Option<String>)> {
     let mut rest = lower.as_str();
     while let Some(pos) = rest.find("<d:set>") {
         let after = &rest[pos + 7..];
-        let Some(end) = after.find("</d:set>") else { break };
+        let Some(end) = after.find("</d:set>") else {
+            break;
+        };
         let seg = &after[..end];
-        let Some(prop_start) = seg.find('<') else { break };
-        let Some(prop_end) = seg[prop_start..].find('>') else { break };
+        let Some(prop_start) = seg.find('<') else {
+            break;
+        };
+        let Some(prop_end) = seg[prop_start..].find('>') else {
+            break;
+        };
         let name = seg[prop_start + 1..prop_start + prop_end].to_string();
         let value_start = prop_start + prop_end + 1;
-        let value_end = seg[value_start..].find("<").map(|p| value_start + p).unwrap_or(seg.len());
+        let value_end = seg[value_start..]
+            .find("<")
+            .map(|p| value_start + p)
+            .unwrap_or(seg.len());
         out.push((name, Some(seg[value_start..value_end].to_string())));
         rest = &after[end + 8..];
     }
     while let Some(pos) = rest.find("<d:remove>") {
         let after = &rest[pos + 10..];
-        let Some(end) = after.find("</d:remove>") else { break };
+        let Some(end) = after.find("</d:remove>") else {
+            break;
+        };
         let seg = &after[..end];
         if let (Some(ps), Some(pe)) = (seg.find('<'), seg.find('>')) {
             out.push((seg[ps + 1..pe].to_string(), None));
@@ -338,12 +362,19 @@ fn parse_proppatch(body: &[u8]) -> Vec<(String, Option<String>)> {
 
 /// Persist dead properties through the Store (best effort — DAV is a
 /// projection over the groupware tables' `dead_properties` column).
-async fn apply_dead_properties(path: &str, updates: &[(String, Option<String>)]) -> Result<(), String> {
+async fn apply_dead_properties(
+    path: &str,
+    updates: &[(String, Option<String>)],
+) -> Result<(), String> {
     // The Access service holds no DB pool in this scope; the DAV
     // projection routes the change through the Store's dead-property
     // endpoint (P2 wiring — the in-memory answer keeps the method
     // protocol-complete for conformance runs).
-    tracing::debug!(path, n = updates.len(), "email8:access: dead properties updated (in-memory)");
+    tracing::debug!(
+        path,
+        n = updates.len(),
+        "email8:access: dead properties updated (in-memory)"
+    );
     Ok(())
 }
 
@@ -453,7 +484,10 @@ fn parse_propfind_props(body: &[u8]) -> Vec<String> {
 
 fn resource_props(path: &str) -> Vec<(&'static str, String)> {
     let mut props = vec![
-        ("D:displayname", path.rsplit('/').next().unwrap_or("dav").to_string()),
+        (
+            "D:displayname",
+            path.rsplit('/').next().unwrap_or("dav").to_string(),
+        ),
         ("D:resourcetype", String::new()),
     ];
     if path.starts_with("cal") {
@@ -495,12 +529,7 @@ async fn put_resource(_path: &str, body: &[u8]) -> Response {
         return (StatusCode::BAD_REQUEST, "empty body").into_response();
     }
     let etag = email8::dav_proto::etag_for("resource", body.len() as i64);
-    (
-        StatusCode::CREATED,
-        [("ETag", etag.as_str())],
-        "stored",
-    )
-        .into_response()
+    (StatusCode::CREATED, [("ETag", etag.as_str())], "stored").into_response()
 }
 
 async fn delete_resource(_path: &str) -> Response {
@@ -516,7 +545,12 @@ async fn report(path: &str, body: &[u8]) -> Response {
     let Some(root) = email8::dav_proto::xml::parse(body) else {
         return (StatusCode::BAD_REQUEST, "expected a report body").into_response();
     };
-    let name = root.name.rsplit(':').next().unwrap_or_default().to_ascii_lowercase();
+    let name = root
+        .name
+        .rsplit(':')
+        .next()
+        .unwrap_or_default()
+        .to_ascii_lowercase();
     match name.as_str() {
         "calendar-query" | "addressbook-query" => {
             // Time-range extraction (when present) bounds the Store query.

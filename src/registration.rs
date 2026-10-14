@@ -6,12 +6,11 @@
 //! Service self-registration data for Email8:Access.
 
 use sentin8::registration::{
-    AdminScope, AdminUi, AdminUiPage, ErrorCode, M2mGrant, PgRole, Registration, SqlMigration,
-    PolicySetDecl, RelationDecl,
+    AdminScope, AdminUi, AdminUiPage, ErrorCode, M2mGrant, PgRole, PolicySetDecl, Registration,
+    RelationDecl, SqlMigration,
 };
 #[cfg(not(test))]
 use utoipa::OpenApi;
-
 
 /// The Shield text of the declared scope-mirror set — public so the
 /// policy wiring tests (POLICY-7) assert against the REAL seed.
@@ -58,17 +57,24 @@ const RELATIONS: &[RelationDecl] = &[];
 /// `m2m-email8:access` maps to the ACL user of the same name — group
 /// DESIGN.md §3.1) and carries the scopes Store's internal-data-API gate
 /// checks for the IMAP/POP3/Sieve session flows.
-const M2M_GRANTS: &[M2mGrant] = &[M2mGrant {
-    workload: "email8:access",
-    scopes: &["email8:mail:read", "email8:mail:write", "email8:mail:receive"],
-}, M2mGrant {
-    // Shield hot-reload consumer (policy crate `policy_bus_client`, full
-    // colon identity — BUSPOLICY-1: the boot-minted cert is authorized by
-    // the enroll-published registry map; without this declared row every
-    // policy SSE connect 401s "workload is not enrolled".
-    workload: "email8:access-policy",
-    scopes: &["sentin8:bus:consume", "sentin8:stat:measure"],
-}];
+const M2M_GRANTS: &[M2mGrant] = &[
+    M2mGrant {
+        workload: "email8:access",
+        scopes: &[
+            "email8:mail:read",
+            "email8:mail:write",
+            "email8:mail:receive",
+        ],
+    },
+    M2mGrant {
+        // Shield hot-reload consumer (policy crate `policy_bus_client`, full
+        // colon identity — BUSPOLICY-1: the boot-minted cert is authorized by
+        // the enroll-published registry map; without this declared row every
+        // policy SSE connect 401s "workload is not enrolled".
+        workload: "email8:access-policy",
+        scopes: &["sentin8:bus:consume", "sentin8:stat:measure"],
+    },
+];
 
 const PG_ROLES: &[PgRole] = &[PgRole {
     scope: "email8:mail:read,email8:mail:write",
@@ -79,36 +85,88 @@ const PG_ROLES: &[PgRole] = &[PgRole {
 }];
 
 const ADMIN_SCOPES: &[AdminScope] = &[
-    AdminScope::Typed { role: "email8:admin", scope: "email8:admin:imap" },
-    AdminScope::Typed { role: "email8:admin", scope: "email8:admin:pop3" },
-    AdminScope::Typed { role: "email8:admin", scope: "email8:admin:sieve" },
-    AdminScope::Typed { role: "email8:admin", scope: "email8:admin:dav" },
+    AdminScope::Typed {
+        role: "email8:admin",
+        scope: "email8:admin:imap",
+    },
+    AdminScope::Typed {
+        role: "email8:admin",
+        scope: "email8:admin:pop3",
+    },
+    AdminScope::Typed {
+        role: "email8:admin",
+        scope: "email8:admin:sieve",
+    },
+    AdminScope::Typed {
+        role: "email8:admin",
+        scope: "email8:admin:dav",
+    },
     // Policy-admin surface (policy design §3.6; principles §6.0b per-service scope).
-    AdminScope::Typed { role: "email8:access:admin", scope: "email8:access:policy:read" },
-    AdminScope::Typed { role: "email8:access:admin", scope: "email8:access:policy:write" },
+    AdminScope::Typed {
+        role: "email8:access:admin",
+        scope: "email8:access:policy:read",
+    },
+    AdminScope::Typed {
+        role: "email8:access:admin",
+        scope: "email8:access:policy:write",
+    },
 ];
 
 const ERROR_CODES: &[ErrorCode] = &[
-    ErrorCode { enum_name: "Email8StoreUnreachable", error_code: "email8_store_unreachable", status_code: 502 },
-    ErrorCode { enum_name: "Email8InvalidToken", error_code: "email8_invalid_token", status_code: 401 },
-    ErrorCode { enum_name: "Email8InsufficientScopes", error_code: "email8_insufficient_scopes", status_code: 403 },
-    ErrorCode { enum_name: "Email8MailboxNotFound", error_code: "email8_mailbox_not_found", status_code: 404 },
-    ErrorCode { enum_name: "Email8SieveScriptNotFound", error_code: "email8_sieve_script_not_found", status_code: 404 },
+    ErrorCode {
+        enum_name: "Email8StoreUnreachable",
+        error_code: "email8_store_unreachable",
+        status_code: 502,
+    },
+    ErrorCode {
+        enum_name: "Email8InvalidToken",
+        error_code: "email8_invalid_token",
+        status_code: 401,
+    },
+    ErrorCode {
+        enum_name: "Email8InsufficientScopes",
+        error_code: "email8_insufficient_scopes",
+        status_code: 403,
+    },
+    ErrorCode {
+        enum_name: "Email8MailboxNotFound",
+        error_code: "email8_mailbox_not_found",
+        status_code: 404,
+    },
+    ErrorCode {
+        enum_name: "Email8SieveScriptNotFound",
+        error_code: "email8_sieve_script_not_found",
+        status_code: 404,
+    },
 ];
 
 const ADMIN_UI_PAGES: &[AdminUiPage] = &[
-    AdminUiPage { route: "imap", label: "IMAP Sessions", ui_endpoint: "/v1/admin/ui/imap", data_endpoint: "/v1/admin/imap", icon: "0xe873" },
-    AdminUiPage { route: "sieve", label: "Sieve Scripts", ui_endpoint: "/v1/admin/ui/sieve", data_endpoint: "/v1/admin/sieve", icon: "0xe0b9" },
+    AdminUiPage {
+        route: "imap",
+        label: "IMAP Sessions",
+        ui_endpoint: "/v1/admin/ui/imap",
+        data_endpoint: "/v1/admin/imap",
+        icon: "0xe873",
+    },
+    AdminUiPage {
+        route: "sieve",
+        label: "Sieve Scripts",
+        ui_endpoint: "/v1/admin/ui/sieve",
+        data_endpoint: "/v1/admin/sieve",
+        icon: "0xe0b9",
+    },
 ];
 
 const SQL_1_INIT: &str = include_str!("../sql/init.sql");
 
 fn openapi_spec() -> serde_json::Value {
-
     // Portable stub when #[path]-included from tests (POLICY-7): the real
     // derive lives in the crate's openapi module, which tests don't link.
     #[cfg(not(test))]
-    { return serde_json::to_value(crate::openapi::AccessOpenApi::openapi()).unwrap_or(serde_json::Value::Null); }
+    {
+        serde_json::to_value(crate::openapi::AccessOpenApi::openapi())
+            .unwrap_or(serde_json::Value::Null)
+    }
     #[cfg(test)]
     return serde_json::Value::Null;
 }
@@ -129,7 +187,11 @@ pub fn print(section: Option<String>) -> anyhow::Result<()> {
             service_flag: "email8",
             pages: ADMIN_UI_PAGES,
         }),
-        sql_migrations: vec![SqlMigration { version: 1, name: "init", sql: SQL_1_INIT }],
+        sql_migrations: vec![SqlMigration {
+            version: 1,
+            name: "init",
+            sql: SQL_1_INIT,
+        }],
         audit_findings: None,
         service_actions: None,
         m2m_grants: Some(M2M_GRANTS),
