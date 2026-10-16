@@ -32,11 +32,6 @@ mod store_http;
 
 use utoipa::OpenApi;
 
-/// mimalloc global allocator (design §6 D13) — IMAP/POP3/ManageSieve
-/// session tasks and the DAV HTTPS surface allocate through it.
-#[global_allocator]
-static GLOBAL: mimalloc::MiMalloc = mimalloc::MiMalloc;
-
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     sentin8::shell::serve(

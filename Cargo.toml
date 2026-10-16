@@ -44,7 +44,6 @@ sqlx = { version = "0.8", features = ["runtime-tokio", "tls-rustls-ring", "postg
 dotenvy = "0.15"
 uuid = { version = "1", features = ["v4", "v5", "serde"] }
 chrono = { version = "0.4", features = ["serde"] }
-mimalloc = { version = "0.1", default-features = false }
 thiserror = "1"
 anyhow = "1"
 futures-util = "0.3"
