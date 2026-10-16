@@ -5,6 +5,10 @@
       "service_type": "email8:access",
       "extra_env": {
         "EMAIL8_ACCESS_ACCEPT_PROXY": "true"
+      },
+      "telemetry_property": {
+        "slug": "access",
+        "name": "Email8:Access Telemetry"
       }
     }
   ]
