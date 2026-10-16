@@ -24,6 +24,12 @@ graph TD
   `vcard`).
 - M2M: certificate identity (CERTFREE-4V) — the Access workload cert
   presents in the TLS handshake; no bearer token on the Store data API.
+- Audit journal (AUDJOUR-1, architecture-principles §6.8): the
+  `access.audit_journal` leaf-schema table (migration v2 — the 15-column
+  `sentin8_audit::audit_journal_sql` contract, the access leaf schema's
+  first object) is drained to Sys `POST /v1/audit` by the shell's
+  boot-8c pusher, presenting the `access-audit` workload certificate
+  (`sentin8:sys:audit:write`).
 - Zero mailbox storage at this layer — Store owns persistence.
 
 See the vertical group docs (`email8/README.md`) for the plane

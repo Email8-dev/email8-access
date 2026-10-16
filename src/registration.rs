@@ -74,6 +74,15 @@ const M2M_GRANTS: &[M2mGrant] = &[
         workload: "email8:access-policy",
         scopes: &["sentin8:bus:consume", "sentin8:stat:measure"],
     },
+    M2mGrant {
+        // Audit-journal pusher's sys-ingest scope (AUDJOUR-1): the shell's
+        // boot-8c pusher presents the `access-audit` certificate to Sys
+        // `POST /v1/audit` — this grant row is what makes the workload
+        // enrollable (the BUSPOLICY-1 class: an undeclared cert mints but
+        // can never be authorized).
+        workload: "access-audit",
+        scopes: &["sentin8:sys:audit:write"],
+    },
 ];
 
 const PG_ROLES: &[PgRole] = &[PgRole {
@@ -159,6 +168,14 @@ const ADMIN_UI_PAGES: &[AdminUiPage] = &[
 
 const SQL_1_INIT: &str = include_str!("../sql/init.sql");
 
+/// AUDJOUR-1 migration v2: the local audit journal in the `access` leaf
+/// schema (sql/audit.sql) — the 15-column contract of
+/// `sentin8_audit::audit_journal_sql` (design/sentin8-audit-journal-
+/// provisioning-design.md §2.1). The shell's boot-8c pusher drains it
+/// to Sys `POST /v1/audit`. The `access` leaf schema is created by the
+/// file itself (it holds nothing else today).
+const SQL_2_AUDIT: &str = include_str!("../sql/audit.sql");
+
 fn openapi_spec() -> serde_json::Value {
     // Portable stub when #[path]-included from tests (POLICY-7): the real
     // derive lives in the crate's openapi module, which tests don't link.
@@ -191,6 +208,10 @@ pub fn print(section: Option<String>) -> anyhow::Result<()> {
             version: 1,
             name: "init",
             sql: SQL_1_INIT,
+        }, SqlMigration {
+            version: 2,
+            name: "audit",
+            sql: SQL_2_AUDIT,
         }],
         audit_findings: None,
         service_actions: None,
