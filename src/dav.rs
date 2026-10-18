@@ -27,6 +27,21 @@ fn webdav_method(name: &str) -> Method {
     Method::from_bytes(name.as_bytes()).unwrap_or(Method::GET)
 }
 
+#[utoipa::path(
+    method(head, options),
+    get,
+    put,
+    post,
+    delete,
+    path = "/dav",
+    responses(
+        (status = 200, description = "DAV collection-root response (the bare /dav entry)"),
+        (status = 207, description = "Multi-Status (PROPFIND)"),
+        (status = 401, description = "Not authenticated"),
+    ),
+    security(("email8:access:dav" = [])),
+    tag = "dav",
+)]
 /// The bare `/dav` entry — axum's `Path<String>` cannot match zero
 /// path arguments, so the collection root gets its own wrapper.
 pub async fn dispatch_root(
@@ -49,6 +64,21 @@ pub async fn dispatch_root(
 }
 
 /// The main DAV dispatcher: `/dav/{*path}` any-method.
+#[utoipa::path(
+    method(head, options),
+    get,
+    put,
+    post,
+    delete,
+    path = "/dav/{path}",
+    responses(
+        (status = 200, description = "DAV response (CalDAV/CardDAV over RFC 4918; request-body protocol)"),
+        (status = 207, description = "Multi-Status (PROPFIND)"),
+        (status = 401, description = "Not authenticated"),
+    ),
+    security(("email8:access:dav" = [])),
+    tag = "dav",
+)]
 pub async fn dispatch(
     State(state): State<AppState>,
     headers: HeaderMap,

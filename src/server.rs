@@ -313,7 +313,16 @@ impl sentin8::shield::admin::HasPolicyAdmin for AppState {
     }
 }
 
-async fn health() -> impl axum::response::IntoResponse {
+#[utoipa::path(
+    get,
+    path = "/v1/health",
+    responses(
+        (status = 200, description = "Liveness (version, build)", body = serde_json::Value),
+    ),
+    security(),
+    tag = "meta",
+)]
+pub async fn health() -> impl axum::response::IntoResponse {
     axum::Json(serde_json::json!({
         "status": "ok",
         "service": "email8:access",
