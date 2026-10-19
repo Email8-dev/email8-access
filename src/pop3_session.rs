@@ -53,7 +53,7 @@ impl<S: AsyncRead + AsyncWrite + Unpin> Pop3Session<S> {
     pub async fn run(mut self) -> std::io::Result<()> {
         // PROXY v2: consume the gate's header before the +OK greeting.
         if let Err(e) = crate::server::strip_proxy_v2(&mut self.stream).await {
-            tracing::warn!(error = %e, "email8:access: PROXY v2 parse failed — dropping");
+            tracing::warn!(error = %e, "email8:access: PROXY v2 parse failed - dropping");
             return Ok(());
         }
         self.write_line("+OK Email8 POP3 at your service.").await?;
@@ -115,7 +115,7 @@ impl<S: AsyncRead + AsyncWrite + Unpin> Pop3Session<S> {
                 }
                 "PASS" => {
                     // The PASS field carries the Sentin8:Auth bearer token
-                    // (the §4.4 bridge — same as IMAP LOGIN).
+                    // (the §4.4 bridge - same as IMAP LOGIN).
                     let Some(token) = arg1 else {
                         self.write_line("-ERR PASS requires the token").await?;
                         continue;

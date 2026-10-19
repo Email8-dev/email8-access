@@ -12,7 +12,7 @@ use sentin8::registration::{
 #[cfg(not(test))]
 use utoipa::OpenApi;
 
-/// The Shield text of the declared scope-mirror set — public so the
+/// The Shield text of the declared scope-mirror set - public so the
 /// policy wiring tests (POLICY-7) assert against the REAL seed.
 pub const SCOPE_MIRROR_POLICIES: &str = "permit(principal, action == Action::\"email8:mail:read\", resource) when { principal.scopes.contains(\"email8:mail:read\") };
 permit(principal, action == Action::\"email8:mail:read\", resource) when { principal.scopes.contains(\"email8:mail:write\") };
@@ -33,13 +33,13 @@ permit(principal, action == Action::\"email8:mail:write\", resource) when { prin
 
 /// Default declarative policy set (Sentin8:Policy design §3.2/§3.4,
 /// seeded by `vertical enroll` as `origin='platform'`, `mode='enforced'`):
-/// action-granular scope permits over the LIVE effective scope set — the
+/// action-granular scope permits over the LIVE effective scope set - the
 /// exact mirror of the gates this service's handlers evaluate in step 5
 /// (policy design §4.3). Enforced (decision 2026-09-07): step 5 is the
 /// only gate; shadow is the emergency one-UPDATE rollback lever only.
 const POLICIES: &[PolicySetDecl] = &[PolicySetDecl {
     policy_set_name: "scope-mirror",
-    description: "Action-granular scope permits for email8:access over the LIVE effective scope set (policy design §3.1d). Enforced (decision 2026-09-07) — step 5 is the only gate.",
+    description: "Action-granular scope permits for email8:access over the LIVE effective scope set (policy design §3.1d). Enforced (decision 2026-09-07) - step 5 is the only gate.",
     // Shield text lives in SCOPE_MIRROR_POLICIES (single source).
     policies: SCOPE_MIRROR_POLICIES,
     schema: None,
@@ -47,14 +47,14 @@ const POLICIES: &[PolicySetDecl] = &[PolicySetDecl {
     default_enabled: true,
 }];
 
-/// Default ReBAC relation tuples (design §3.1c) — none declared by this
+/// Default ReBAC relation tuples (design §3.1c) - none declared by this
 /// service today; env admins author their own graph (delegate /
 /// shared-mailbox edges) via the relations admin API.
 const RELATIONS: &[RelationDecl] = &[];
 
 /// M2M workload declarations (CERTFREE-4V): the `email8:access` workload
 /// row drives `vertical enroll`'s Valkey ACL-user provisioning (the CN
-/// `m2m-email8:access` maps to the ACL user of the same name — group
+/// `m2m-email8:access` maps to the ACL user of the same name - group
 /// DESIGN.md §3.1) and carries the scopes Store's internal-data-API gate
 /// checks for the IMAP/POP3/Sieve session flows.
 const M2M_GRANTS: &[M2mGrant] = &[
@@ -68,7 +68,7 @@ const M2M_GRANTS: &[M2mGrant] = &[
     },
     M2mGrant {
         // Shield hot-reload consumer (policy crate `policy_bus_client`, full
-        // colon identity — BUSPOLICY-1: the boot-minted cert is authorized by
+        // colon identity - BUSPOLICY-1: the boot-minted cert is authorized by
         // the enroll-published registry map; without this declared row every
         // policy SSE connect 401s "workload is not enrolled".
         workload: "email8:access-policy",
@@ -77,7 +77,7 @@ const M2M_GRANTS: &[M2mGrant] = &[
     M2mGrant {
         // Audit-journal pusher's sys-ingest scope (AUDJOUR-1): the shell's
         // boot-8c pusher presents the `access-audit` certificate to Sys
-        // `POST /v1/audit` — this grant row is what makes the workload
+        // `POST /v1/audit` - this grant row is what makes the workload
         // enrollable (the BUSPOLICY-1 class: an undeclared cert mints but
         // can never be authorized).
         workload: "access-audit",
@@ -169,7 +169,7 @@ const ADMIN_UI_PAGES: &[AdminUiPage] = &[
 const SQL_1_INIT: &str = include_str!("../sql/init.sql");
 
 /// AUDJOUR-1 migration v2: the local audit journal in the `access` leaf
-/// schema (sql/audit.sql) — the 15-column contract of
+/// schema (sql/audit.sql) - the 15-column contract of
 /// `sentin8_audit::audit_journal_sql` (design/sentin8-audit-journal-
 /// provisioning-design.md §2.1). The shell's boot-8c pusher drains it
 /// to Sys `POST /v1/audit`. The `access` leaf schema is created by the

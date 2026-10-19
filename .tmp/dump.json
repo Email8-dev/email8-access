@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "email8-access",
-    "description": "Sentin8 Email8:Access — IMAP, POP3, ManageSieve, CalDAV/CardDAV/WebDAV protocol services.",
+    "description": "Sentin8 Email8:Access - IMAP, POP3, ManageSieve, CalDAV/CardDAV/WebDAV protocol services.",
     "license": {
       "name": "MIT OR Apache-2.0",
       "identifier": "MIT OR Apache-2.0"
@@ -15,7 +15,7 @@
         "tags": [
           "dav"
         ],
-        "summary": "The bare `/dav` entry — axum's `Path<String>` cannot match zero\npath arguments, so the collection root gets its own wrapper.",
+        "summary": "The bare `/dav` entry - axum's `Path<String>` cannot match zero\npath arguments, so the collection root gets its own wrapper.",
         "operationId": "dispatch_root",
         "responses": {
           "200": {
@@ -604,7 +604,7 @@
     "schemas": {
       "DeleteAttributeQuery": {
         "type": "object",
-        "description": "`DELETE /v1/admin/attributes` query — identifies the attribute.",
+        "description": "`DELETE /v1/admin/attributes` query - identifies the attribute.",
         "required": [
           "subject_id",
           "attr_key"
@@ -626,7 +626,7 @@
       },
       "DeleteRelationQuery": {
         "type": "object",
-        "description": "`DELETE /v1/admin/relations` query — identifies the tuple.",
+        "description": "`DELETE /v1/admin/relations` query - identifies the tuple.",
         "required": [
           "subject_type",
           "subject_id",
@@ -660,7 +660,7 @@
       },
       "ListAttributesQuery": {
         "type": "object",
-        "description": "`GET /v1/admin/attributes` query — list attributes for one subject (or\nall subjects in the env when omitted).",
+        "description": "`GET /v1/admin/attributes` query - list attributes for one subject (or\nall subjects in the env when omitted).",
         "properties": {
           "subject_id": {
             "type": [
@@ -696,7 +696,7 @@
       },
       "PutAttributeBody": {
         "type": "object",
-        "description": "`PUT /v1/admin/attributes` body — one principal attribute.",
+        "description": "`PUT /v1/admin/attributes` body - one principal attribute.",
         "required": [
           "subject_id",
           "attr_key",
@@ -747,7 +747,7 @@
       },
       "PutRelationBody": {
         "type": "object",
-        "description": "`PUT /v1/admin/relations` body — one relation tuple.",
+        "description": "`PUT /v1/admin/relations` body - one relation tuple.",
         "required": [
           "subject_type",
           "subject_id",
@@ -775,7 +775,7 @@
       },
       "RelationCheckQuery": {
         "type": "object",
-        "description": "`GET /v1/admin/relations/check` query — Zanzibar-style dry-run.",
+        "description": "`GET /v1/admin/relations/check` query - Zanzibar-style dry-run.",
         "required": [
           "subject_type",
           "subject_id",
@@ -857,7 +857,7 @@
   "tags": [
     {
       "name": "email8-access",
-      "description": "Sentin8 Email8:Access — IMAP, POP3, ManageSieve, DAV protocol services"
+      "description": "Sentin8 Email8:Access - IMAP, POP3, ManageSieve, DAV protocol services"
     },
     {
       "name": "dav",

@@ -3,7 +3,7 @@
 // SPDX-FileCopyrightText: Copyright Contributors to the Email8:Access
 // SPDX-License-Identifier: Apache-2.0
 
-//! Sentin8 Email8:Access — library re-exports for integration tests.
+//! Sentin8 Email8:Access - library re-exports for integration tests.
 
 pub mod auth;
 pub mod config;

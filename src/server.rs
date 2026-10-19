@@ -3,7 +3,7 @@
 // SPDX-FileCopyrightText: Copyright Contributors to the Email8:Access
 // SPDX-License-Identifier: Apache-2.0
 
-//! Axum server setup for Email8:Access — HTTP health + raw-TCP listeners.
+//! Axum server setup for Email8:Access - HTTP health + raw-TCP listeners.
 
 use std::sync::Arc;
 
@@ -12,7 +12,7 @@ use axum::routing::{get, post};
 use crate::config::AccessConfig;
 
 /// Service state: the service config + the shell `ServiceCore`
-/// (pool + Sentin8:Policy engine + shared admin surface — Phase 28 §3.6).
+/// (pool + Sentin8:Policy engine + shared admin surface - Phase 28 §3.6).
 /// The engine inside `core.admin` is the SAME instance the step-5 gate
 /// evaluates, so admin writes and request-time decisions agree.
 /// (`ServiceCore` is not `Clone`; `Arc` gives the cheap state clone.)
@@ -32,7 +32,7 @@ pub async fn build_state(core: sentin8::shell::ServiceCore) -> anyhow::Result<Ap
         core,
     };
 
-    // Sentin8:Policy (Phase 28, §4.2b — shell-owned boot): the shell's
+    // Sentin8:Policy (Phase 28, §4.2b - shell-owned boot): the shell's
     // boot step 8 already booted the engine (refuse-to-start, shared deps,
     // hot-reload consumer, stat emitter). Services only consume it.
 
@@ -125,7 +125,7 @@ pub async fn build_state(core: sentin8::shell::ServiceCore) -> anyhow::Result<Ap
 /// Consume a leading PROXY protocol v2 header from `stream` when the
 /// listener is gate-served (`EMAIL8_ACCESS_ACCEPT_PROXY=true`). Returns
 /// the real client address (or `None` when parsing is disabled).
-/// A malformed header is a protocol desync — the caller must drop the
+/// A malformed header is a protocol desync - the caller must drop the
 /// connection.
 pub async fn strip_proxy_v2<S: tokio::io::AsyncRead + Unpin>(
     stream: &mut S,
@@ -198,7 +198,7 @@ async fn spawn_listener(
                                 let _ = session.run().await;
                             }
                             // POP3 (RFC 1939/2449) + ManageSieve (RFC 5804)
-                            // — full protocol surfaces over Store's data API.
+                            // - full protocol surfaces over Store's data API.
                             Proto::Pop3 | Proto::Pop3s => {
                                 let session = crate::pop3_session::Pop3Session::new(
                                     socket, cfg, pool, engine,
@@ -234,12 +234,12 @@ async fn spawn_listener(
 }
 
 pub fn routes(router: axum::Router<AppState>) -> axum::Router<AppState> {
-    // DAV surface (CalDAV/CardDAV/WebDAV, access design §6) — the
+    // DAV surface (CalDAV/CardDAV/WebDAV, access design §6) - the
     // any-method dispatcher owns OPTIONS/PROPFIND/GET/PUT/DELETE/
     // MKCOL/MKCALENDAR/REPORT. NO CorsLayer here: tower-http treats every
     // OPTIONS as a preflight and responds itself (empty 200, no DAV/
     // Allow headers), which would hide the RFC 4918 §10.1 advertisement.
-    // DAV clients are native apps, not browsers — CORS is not applicable
+    // DAV clients are native apps, not browsers - CORS is not applicable
     // on this surface (access design §2); the JMAP/HTTP surface for
     // browsers goes through the BFF, which owns CORS.
     router
@@ -256,7 +256,7 @@ pub fn routes(router: axum::Router<AppState>) -> axum::Router<AppState> {
             "/dav/",
             axum::routing::any(crate::dav::dispatch_root).options(crate::dav::dispatch_root),
         )
-        // ── Sentin8:Policy admin API (Phase 28 §3.6 — shared
+        // ── Sentin8:Policy admin API (Phase 28 §3.6 - shared
         // implementation; handlers generic over this state via
         // HasPolicyAdmin).
         .route(

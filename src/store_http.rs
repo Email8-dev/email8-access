@@ -6,7 +6,7 @@
 //! Certificate-presenting HTTP client for internal Store data-API calls
 //! (design `sentin8-email8-technical-design.md` service-to-service row;
 //! CERTFREE-4V). The Access service presents its own Acme-issued
-//! workload certificate (`CN=m2m-email8:access`) in the TLS handshake —
+//! workload certificate (`CN=m2m-email8:access`) in the TLS handshake -
 //! Store's TLS layer authenticates it and its internal-API gate resolves
 //! the workload against the enroll-published registry map. No M2M token
 //! exists on this path.
@@ -19,7 +19,7 @@ static CLIENT: OnceLock<reqwest::Client> = OnceLock::new();
 /// The shared cert-presenting Store client. Falls back to a plain HTTP
 /// client when the workload certificate cannot be ensured yet (Acme
 /// still coming up at first boot): Store rejects a tokenless client
-/// loudly at its authorization gate and the next session retries —
+/// loudly at its authorization gate and the next session retries -
 /// fail-soft, like a Store outage.
 pub async fn store_client() -> reqwest::Client {
     if let Some(cached) = CLIENT.get() {
@@ -44,13 +44,13 @@ pub async fn store_client() -> reqwest::Client {
             match sentin8::middleware::mtls::build_mtls_client(&mtls) {
                 Ok(c) => c,
                 Err(e) => {
-                    tracing::warn!(error = %e, "email8:access: store mTLS transport unavailable — degraded");
+                    tracing::warn!(error = %e, "email8:access: store mTLS transport unavailable - degraded");
                     reqwest::Client::new()
                 }
             }
         }
         Err(e) => {
-            tracing::warn!(error = %e, "email8:access: workload certificate not ready — store calls degraded");
+            tracing::warn!(error = %e, "email8:access: workload certificate not ready - store calls degraded");
             reqwest::Client::new()
         }
     };

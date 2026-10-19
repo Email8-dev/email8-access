@@ -3,7 +3,7 @@
 // SPDX-FileCopyrightText: Copyright Contributors to the Email8:Access
 // SPDX-License-Identifier: Apache-2.0
 
-//! ManageSieve session (RFC 5804) — script CRUD over the Store data
+//! ManageSieve session (RFC 5804) - script CRUD over the Store data
 //! API with the untrusted compile check from the `email8-sieve` crate.
 //! CAPABILITY advertises the registered extension set; PUTSCRIPT
 //! compiles + stores; SETACTIVE flips the principal's active script.
@@ -52,7 +52,7 @@ impl<S: AsyncRead + AsyncWrite + Unpin> SieveSession<S> {
         // PROXY v2 (gate design §3.3): consume the gate's header before
         // the capability greeting.
         if let Err(e) = crate::server::strip_proxy_v2(&mut self.stream).await {
-            tracing::warn!(error = %e, "email8:access: PROXY v2 parse failed — dropping");
+            tracing::warn!(error = %e, "email8:access: PROXY v2 parse failed - dropping");
             return Ok(());
         }
         // RFC 5804 greeting: capabilities in quoted strings, OK last.
@@ -168,7 +168,7 @@ impl<S: AsyncRead + AsyncWrite + Unpin> SieveSession<S> {
                 self.write_line("NO \"Authenticate first\"").await?;
             }
             "HAVESPACE" => {
-                // Quota check against the Store — permissive by default.
+                // Quota check against the Store - permissive by default.
                 self.write_line(&format!("OK {}", 1024 * 1024)).await?;
             }
             "LISTSCRIPTS" => match self.store_list_scripts().await {
@@ -198,7 +198,7 @@ impl<S: AsyncRead + AsyncWrite + Unpin> SieveSession<S> {
                 }
             },
             "PUTSCRIPT" => {
-                // PUTSCRIPT "name" {n}\r\n<bytes> — the literal follows.
+                // PUTSCRIPT "name" {n}\r\n<bytes> - the literal follows.
                 let name = rest
                     .split_whitespace()
                     .next()

@@ -3,14 +3,14 @@
 // SPDX-FileCopyrightText: Copyright Contributors to the Email8:Access
 // SPDX-License-Identifier: Apache-2.0
 
-//! Sentin8 Email8:Access — legacy-protocol front-end services.
+//! Sentin8 Email8:Access - legacy-protocol front-end services.
 //!
 //! See `email8/design/sentin8-email8-access-technical-design.md`.
 //!
 //! Raw-TCP listeners (IMAP 143/993, POP3 110/995, ManageSieve 4190) run as
 //! dedicated tasks over the platform TLS surface; DAV is served over HTTPS
 //! via the shell router. All data access flows through Email8:Store's
-//! data API — Access never writes mail tables directly.
+//! data API - Access never writes mail tables directly.
 
 #[allow(dead_code)]
 mod auth;

@@ -3,7 +3,7 @@
 // SPDX-FileCopyrightText: Copyright Contributors to the Email8:Access
 // SPDX-License-Identifier: Apache-2.0
 
-//! Email8:Access configuration — listener ports + platform URLs.
+//! Email8:Access configuration - listener ports + platform URLs.
 
 use sentin8::auth::client::{Client as AuthClient, ClientOptions};
 

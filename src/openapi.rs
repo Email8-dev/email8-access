@@ -42,7 +42,7 @@ use utoipa::OpenApi;
     )),
     security(),
     tags(
-        (name = "email8-access", description = "Sentin8 Email8:Access — IMAP, POP3, ManageSieve, DAV protocol services"),
+        (name = "email8-access", description = "Sentin8 Email8:Access - IMAP, POP3, ManageSieve, DAV protocol services"),
         (name = "dav", description = "RFC 4918 WebDAV surface (CalDAV/CardDAV)"),
         (name = "policy", description = "Shield policy admin (generic-handler surface)"),
         (name = "meta", description = "Liveness/service metadata"),

@@ -10,7 +10,7 @@ edition = "2021"
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/Email8-dev/email8-access"
 rust-version = "1.85"
-description = "Sentin8 Email8:Access — IMAP, POP3, ManageSieve, CalDAV/CardDAV/WebDAV protocol services."
+description = "Sentin8 Email8:Access - IMAP, POP3, ManageSieve, CalDAV/CardDAV/WebDAV protocol services."
 
 [[bin]]
 name = "email8-access"

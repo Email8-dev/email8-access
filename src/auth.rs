@@ -64,7 +64,7 @@ pub async fn verify(
     let sub_uuid = Uuid::parse_str(&sub).map_err(|_| "auth sub is not a UUID".to_string())?;
 
     // Bind the sub → email8 account id on a dedicated connection with
-    // tenant context set (§4.3d — same connection as the data query).
+    // tenant context set (§4.3d - same connection as the data query).
     let mut conn = pool
         .acquire()
         .await

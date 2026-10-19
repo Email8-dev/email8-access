@@ -3,7 +3,7 @@
 // SPDX-FileCopyrightText: Copyright Contributors to the Email8:Access
 // SPDX-License-Identifier: Apache-2.0
 
-//! CalDAV/CardDAV/WebDAV handlers (HTTPS via the shell router) —
+//! CalDAV/CardDAV/WebDAV handlers (HTTPS via the shell router) -
 //! PROPFIND/PROPPATCH-lite, GET/PUT/DELETE, MKCOL/MKCALENDAR, REPORT
 //! (calendar-query time-range + addressbook query), SyncCollection via
 //! the changelog. Data flows through Store's data API under the user's
@@ -42,7 +42,7 @@ fn webdav_method(name: &str) -> Method {
     security(("email8:access:dav" = [])),
     tag = "dav",
 )]
-/// The bare `/dav` entry — axum's `Path<String>` cannot match zero
+/// The bare `/dav` entry - axum's `Path<String>` cannot match zero
 /// path arguments, so the collection root gets its own wrapper.
 pub async fn dispatch_root(
     State(state): State<AppState>,
@@ -87,7 +87,7 @@ pub async fn dispatch(
     body: Bytes,
 ) -> Response {
     // Step-5 Sentin8:Policy gate (Phase 28 §4.3): every DAV method is
-    // a groupware mutation or read by an authenticated mail user — the
+    // a groupware mutation or read by an authenticated mail user - the
     // write action governs (PUT/PROPPATCH/MKCOL…), reads pass the mirror's
     // read-permit for the same role set. No post-verify JWT scope check.
     if let Err(resp) = dav_gate(&state, &headers).await {
@@ -174,7 +174,7 @@ fn options() -> Response {
         .into_response()
 }
 
-// ── LOCK / UNLOCK (RFC 4918 §9 — story 4.7; the webdav class-2 lock
+// ── LOCK / UNLOCK (RFC 4918 §9 - story 4.7; the webdav class-2 lock
 //    manager. Locks live in-process (single-instance Mta/Access v1); a
 //    cluster-wide lock table rides the Store's dead_properties column
 //    once multi-instance Access lands).
@@ -199,7 +199,7 @@ fn locks() -> &'static std::sync::Mutex<std::collections::HashMap<String, Active
     LOCKS.get_or_init(Default::default)
 }
 
-/// LOCK — create/refresh an exclusive write lock. Returns 200 + the
+/// LOCK - create/refresh an exclusive write lock. Returns 200 + the
 /// lockdiscovery body, or 423 when another lock holds the resource.
 async fn lock_resource(path: &str, body: &[u8], timeout: Option<&str>) -> Response {
     let ttl_secs = parse_timeout(timeout).unwrap_or(600);
@@ -258,7 +258,7 @@ async fn lock_resource(path: &str, body: &[u8], timeout: Option<&str>) -> Respon
         .into_response()
 }
 
-/// UNLOCK — remove the lock when the token matches (RFC 4918 §9.11).
+/// UNLOCK - remove the lock when the token matches (RFC 4918 §9.11).
 async fn unlock_resource(path: &str, lock_token: Option<&str>) -> Response {
     let Some(token) = lock_token else {
         return (StatusCode::BAD_REQUEST, "missing Lock-Token header").into_response();
@@ -307,7 +307,7 @@ fn parse_lock_depth(body: &[u8]) -> bool {
     lower[start..].contains("<d:depth>infinity</d:depth>")
 }
 
-/// PROPPATCH — set/remove dead properties (RFC 4918 §9.2). The
+/// PROPPATCH - set/remove dead properties (RFC 4918 §9.2). The
 /// properties persist in the resource's dead_properties JSONB via the
 /// Store (single-object paths only; collection props are P2).
 async fn proppatch(path: &str, body: &[u8]) -> Response {
@@ -317,7 +317,7 @@ async fn proppatch(path: &str, body: &[u8]) -> Response {
         .map(|(name, _)| format!("{path}::{}", name))
         .collect();
     let _ = apply_dead_properties(path, &updates).await;
-    // Multistatus: one propstat per property (all 200 — the Store
+    // Multistatus: one propstat per property (all 200 - the Store
     // accepts the set; conflicts are P2 with ACL integration).
     let mut xml = email8::dav_proto::xml::Xml::new().with_ns("D", DAV_NS);
     xml.open("D:multistatus");
@@ -390,7 +390,7 @@ fn parse_proppatch(body: &[u8]) -> Vec<(String, Option<String>)> {
     out
 }
 
-/// Persist dead properties through the Store (best effort — DAV is a
+/// Persist dead properties through the Store (best effort - DAV is a
 /// projection over the groupware tables' `dead_properties` column).
 async fn apply_dead_properties(
     path: &str,
@@ -398,7 +398,7 @@ async fn apply_dead_properties(
 ) -> Result<(), String> {
     // The Access service holds no DB pool in this scope; the DAV
     // projection routes the change through the Store's dead-property
-    // endpoint (P2 wiring — the in-memory answer keeps the method
+    // endpoint (P2 wiring - the in-memory answer keeps the method
     // protocol-complete for conformance runs).
     tracing::debug!(
         path,
@@ -408,7 +408,7 @@ async fn apply_dead_properties(
     Ok(())
 }
 
-/// ACL method (RFC 3744) — accept the grant set and acknowledge. The
+/// ACL method (RFC 3744) - accept the grant set and acknowledge. The
 /// rights map onto email8_acl_grants via the Store's /v1/internal/acl
 /// endpoints (the parse produces the grant list; the Store call is
 /// wired at the ACL-admin pass).
@@ -447,7 +447,7 @@ fn parse_acl_grants(body: &[u8]) -> Vec<(String, Vec<String>)> {
     out
 }
 
-/// PROPFIND depth 0/1 — home collection listing.
+/// PROPFIND depth 0/1 - home collection listing.
 async fn propfind(path: &str, depth: Depth, body: &[u8]) -> Response {
     let requested = parse_propfind_props(body);
     let mut xml = Xml::new()
@@ -570,7 +570,7 @@ async fn mkcol(_path: &str) -> Response {
     (StatusCode::CREATED, "collection created").into_response()
 }
 
-/// REPORT — calendar-query (time-range), addressbook-query, sync-collection.
+/// REPORT - calendar-query (time-range), addressbook-query, sync-collection.
 async fn report(path: &str, body: &[u8]) -> Response {
     let Some(root) = email8::dav_proto::xml::parse(body) else {
         return (StatusCode::BAD_REQUEST, "expected a report body").into_response();

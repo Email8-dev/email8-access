@@ -3,7 +3,7 @@
 // SPDX-FileCopyrightText: Copyright Contributors to the Email8:Access
 // SPDX-License-Identifier: Apache-2.0
 
-//! IMAP session — P1 op set over Email8:Store's data API.
+//! IMAP session - P1 op set over Email8:Store's data API.
 //!
 //! Implements: greeting + capabilities, AUTHENTICATE/LOGIN via the SASL
 //! bridge, LIST/LSUB, SELECT/EXAMINE, STATUS, NOOP/CHECK, LOGOUT.
@@ -66,7 +66,7 @@ impl<S: AsyncRead + AsyncWrite + Unpin> ImapSession<S> {
         // PROXY v2 (gate design §3.3): consume the gate's header before
         // the greeting when this listener is gate-served.
         if let Err(e) = crate::server::strip_proxy_v2(&mut self.stream).await {
-            tracing::warn!(error = %e, "email8:access: PROXY v2 parse failed — dropping");
+            tracing::warn!(error = %e, "email8:access: PROXY v2 parse failed - dropping");
             return Ok(());
         }
         self.write_raw(&email8::imap_proto::greeting(
@@ -169,7 +169,7 @@ impl<S: AsyncRead + AsyncWrite + Unpin> ImapSession<S> {
             Op::StartTls => {
                 // The listener owns the TLS swap (access design §2);
                 // raw-TCP TLS upgrade is platform gap G1, wired at the
-                // listener — the session just acknowledges readiness.
+                // listener - the session just acknowledges readiness.
                 self.write_raw(&email8::imap_proto::tagged_ok(
                     tag,
                     "Begin TLS negotiation now",
@@ -372,7 +372,7 @@ impl<S: AsyncRead + AsyncWrite + Unpin> ImapSession<S> {
                 let auth = self.auth.clone().unwrap();
                 match self.op_sort(&auth, mailbox_id, &keys, &criteria).await {
                     Ok(orders) => {
-                        // * SORT (ids) — the id sequence per RFC 5256.
+                        // * SORT (ids) - the id sequence per RFC 5256.
                         let value = if uid {
                             orders
                                 .iter()
@@ -418,7 +418,7 @@ impl<S: AsyncRead + AsyncWrite + Unpin> ImapSession<S> {
                     .await
                 {
                     Ok(groups) => {
-                        // * THREAD (a b)(c d) — grouped member ids.
+                        // * THREAD (a b)(c d) - grouped member ids.
                         let rendered: Vec<String> = groups
                             .iter()
                             .map(|g| {
@@ -854,7 +854,7 @@ impl<S: AsyncRead + AsyncWrite + Unpin> ImapSession<S> {
             .collect()
     }
 
-    /// FETCH — the items the wire protocol needs; the raw body arrives as
+    /// FETCH - the items the wire protocol needs; the raw body arrives as
     /// a literal from the blob endpoint.
     async fn op_fetch(
         &self,
@@ -917,7 +917,7 @@ impl<S: AsyncRead + AsyncWrite + Unpin> ImapSession<S> {
                         ));
                     }
                     FetchItem::Rfc822 => {
-                        // RFC822 ≡ BODY[] — the full raw message.
+                        // RFC822 ≡ BODY[] - the full raw message.
                         let email_id = meta.get("id").and_then(|v| v.as_str()).unwrap_or_default();
                         let blob = meta
                             .get("blob_hash")
@@ -984,7 +984,7 @@ impl<S: AsyncRead + AsyncWrite + Unpin> ImapSession<S> {
         Ok(lines)
     }
 
-    /// STORE — flag updates (\Seen etc.) + \Deleted accumulation.
+    /// STORE - flag updates (\Seen etc.) + \Deleted accumulation.
     async fn op_store(
         &mut self,
         auth: &AccessAuth,
@@ -1038,7 +1038,7 @@ impl<S: AsyncRead + AsyncWrite + Unpin> ImapSession<S> {
         Ok(())
     }
 
-    /// SEARCH — the basic criteria set against the listing metadata.
+    /// SEARCH - the basic criteria set against the listing metadata.
     async fn op_search(
         &self,
         auth: &AccessAuth,
@@ -1109,7 +1109,7 @@ impl<S: AsyncRead + AsyncWrite + Unpin> ImapSession<S> {
         Ok(hits)
     }
 
-    /// RFC 5256 SORT — search filter + sort keys over the selected
+    /// RFC 5256 SORT - search filter + sort keys over the selected
     /// mailbox. Returns (sequence, uid) pairs in sorted order.
     async fn op_sort(
         &self,
@@ -1147,7 +1147,7 @@ impl<S: AsyncRead + AsyncWrite + Unpin> ImapSession<S> {
                 .to_string();
             rows.push((seq, uid, subject, from, received));
         }
-        // Apply the sort keys in reverse order (last key is primary —
+        // Apply the sort keys in reverse order (last key is primary -
         // RFC 5256: SORT (DATE SUBJECT) sorts by subject, then date).
         for key in keys.iter().rev() {
             match key.as_str() {
@@ -1166,7 +1166,7 @@ impl<S: AsyncRead + AsyncWrite + Unpin> ImapSession<S> {
             .collect())
     }
 
-    /// RFC 5256 THREAD — group the search hits into threads. The
+    /// RFC 5256 THREAD - group the search hits into threads. The
     /// REFERENCES algorithm groups by normalized subject (the Store's
     /// CheekyHash threading reuses normalized subject as its primary
     /// key, so subject grouping matches the server's thread identity);
@@ -1237,7 +1237,7 @@ impl<S: AsyncRead + AsyncWrite + Unpin> ImapSession<S> {
         resp.json::<serde_json::Value>().await.ok()
     }
 
-    /// COPY/MOVE — the membership add (COPY) + optional destroy (MOVE).
+    /// COPY/MOVE - the membership add (COPY) + optional destroy (MOVE).
     async fn op_copy(
         &self,
         auth: &AccessAuth,
@@ -1293,7 +1293,7 @@ impl<S: AsyncRead + AsyncWrite + Unpin> ImapSession<S> {
         Ok(())
     }
 
-    /// APPEND — literal bytes were inlined by the receiver; the raw
+    /// APPEND - literal bytes were inlined by the receiver; the raw
     /// message is re-materialized from the command reconstruction.
     async fn op_append(&self, auth: &AccessAuth, mailbox: &str) -> Result<Option<i64>, String> {
         // Resolve the destination.
@@ -1314,7 +1314,7 @@ impl<S: AsyncRead + AsyncWrite + Unpin> ImapSession<S> {
             .and_then(|v| v.as_i64())
             .ok_or_else(|| format!("mailbox {target} not found"))?;
         // The APPEND literal content was already inlined by the receiver
-        // into `self.last_literal` — see `run()`'s LiteralContinuation
+        // into `self.last_literal` - see `run()`'s LiteralContinuation
         // handling. This is stored by the session's append buffer.
         let raw = self
             .append_literal
@@ -1347,7 +1347,7 @@ impl<S: AsyncRead + AsyncWrite + Unpin> ImapSession<S> {
         Ok(body.get("imap_uid").and_then(|v| v.as_i64()))
     }
 
-    /// Destroy emails (EXPUNGE/CLOSE/MOVE) — the internal batch endpoint.
+    /// Destroy emails (EXPUNGE/CLOSE/MOVE) - the internal batch endpoint.
     async fn store_destroy_emails(
         &self,
         auth: &AccessAuth,
@@ -1421,7 +1421,7 @@ fn header_block(raw: &[u8]) -> Vec<u8> {
 }
 
 /// The requested header fields (case-insensitive) + the terminating blank
-/// line — RFC 9051 §6.4.5 BODY[HEADER.FIELDS (<list>)].
+/// line - RFC 9051 §6.4.5 BODY[HEADER.FIELDS (<list>)].
 fn header_fields(raw: &[u8], wanted: &[String]) -> Vec<u8> {
     let mut out: Vec<u8> = Vec::new();
     let block = header_block(raw);
