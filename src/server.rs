@@ -317,7 +317,7 @@ impl sentin8::shield::admin::HasPolicyAdmin for AppState {
     get,
     path = "/v1/health",
     responses(
-        (status = 200, description = "Liveness (version, build)", body = serde_json::Value),
+        (status = 200, description = "Liveness (version, build)", body = sentin8::middleware::health::LiveHealth),
     ),
     security(),
     tag = "meta",
