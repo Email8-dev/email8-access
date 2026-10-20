@@ -204,15 +204,18 @@ pub fn print(section: Option<String>) -> anyhow::Result<()> {
             service_flag: "email8",
             pages: ADMIN_UI_PAGES,
         }),
-        sql_migrations: vec![SqlMigration {
-            version: 1,
-            name: "init",
-            sql: SQL_1_INIT,
-        }, SqlMigration {
-            version: 2,
-            name: "audit",
-            sql: SQL_2_AUDIT,
-        }],
+        sql_migrations: vec![
+            SqlMigration {
+                version: 1,
+                name: "init",
+                sql: SQL_1_INIT,
+            },
+            SqlMigration {
+                version: 2,
+                name: "audit",
+                sql: SQL_2_AUDIT,
+            },
+        ],
         audit_findings: None,
         service_actions: None,
         m2m_grants: Some(M2M_GRANTS),
