@@ -1,5 +1,10 @@
 # Sentin8 Email8:Access - Mailbox Protocol Services
 
+[![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](../../LICENSE)
+[![Built with Rust](https://img.shields.io/badge/Built%20with-Rust-orange.svg)](https://www.rust-lang.org/)
+[![Docs](https://img.shields.io/badge/docs/read-3aa757.svg)](https://email8.dev/docs/products/access)
+[![Website](https://img.shields.io/badge/website-email8.dev-1a73e8.svg)](https://email8.dev)
+
 ## 1. Summary
 
 Email8:Access serves the mailbox access protocols: IMAP (with full
