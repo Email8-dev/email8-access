@@ -68,17 +68,17 @@ const M2M_GRANTS: &[M2mGrant] = &[
     },
     M2mGrant {
         // Shield hot-reload consumer (policy crate `policy_bus_client`, full
-        // colon identity - BUSPOLICY-1: the boot-minted cert is authorized by
+        // colon identity - the boot-minted cert is authorized by
         // the enroll-published registry map; without this declared row every
         // policy SSE connect 401s "workload is not enrolled".
         workload: "email8:access-policy",
         scopes: &["sentin8:bus:consume", "sentin8:stat:measure"],
     },
     M2mGrant {
-        // Audit-journal pusher's sys-ingest scope (AUDJOUR-1): the shell's
+        // Audit-journal pusher's sys-ingest scope : the shell's
         // boot-8c pusher presents the `access-audit` certificate to Sys
         // `POST /v1/audit` - this grant row is what makes the workload
-        // enrollable (the BUSPOLICY-1 class: an undeclared cert mints but
+        // enrollable (the class: an undeclared cert mints but
         // can never be authorized).
         workload: "access-audit",
         scopes: &["sentin8:sys:audit:write"],
@@ -168,7 +168,7 @@ const ADMIN_UI_PAGES: &[AdminUiPage] = &[
 
 const SQL_1_INIT: &str = include_str!("../sql/init.sql");
 
-/// AUDJOUR-1 migration v2: the local audit journal in the `access` leaf
+/// migration v2: the local audit journal in the `access` leaf
 /// schema (sql/audit.sql) - the 15-column contract of
 /// `sentin8_audit::audit_journal_sql` (design/sentin8-audit-journal-
 /// provisioning-design.md §2.1). The shell's boot-8c pusher drains it
