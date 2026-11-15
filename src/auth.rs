@@ -65,14 +65,27 @@ pub async fn verify(
 
     // Bind the sub → email8 account id on a dedicated connection with
     // tenant context set (§4.3d - same connection as the data query).
-    let mut conn = pool
-        .acquire()
+    // The FULL context stamp (the 10-param contract): the principals
+    // policy's holder branch admits
+    // `sentin8_current_sentin8_auth_user_id() IS NOT NULL` - the former
+    // 1-arg stamp left it NULL and every LOGIN failed with "no mailbox
+    // account for this user" (E2E-ACCESS-1, found by the lifecycle
+    // suite's IMAP leg). Transaction-local: the bind query shares the
+    // same transaction.
+    let mut tx = pool
+        .begin()
         .await
-        .map_err(|e| format!("pool acquire: {e}"))?;
-    sqlx::query("SELECT sentin8_set_tenant_context($1)")
-        .bind(env_id)
-        .execute(&mut *conn)
-        .await
+        .map_err(|e| format!("pool begin: {e}"))?;
+    sqlx::query(
+        "SELECT sentin8_set_tenant_context($1, $2, $3, $4, false, false, false, $5)",
+    )
+    .bind(env_id)
+    .bind(&sub)
+    .bind(ctx.claims.token_tp.clone())
+    .bind(ctx.claims.scope.clone())
+    .bind(sub_uuid)
+    .execute(&mut *tx)
+    .await
         .map_err(|e| format!("tenant context: {e}"))?;
     let account_id: (Uuid,) = sqlx::query_as(
         "SELECT id FROM email8.principals \
@@ -80,9 +93,12 @@ pub async fn verify(
     )
     .bind(env_id)
     .bind(sub_uuid)
-    .fetch_one(&mut *conn)
+    .fetch_one(&mut *tx)
     .await
     .map_err(|_| "no mailbox account for this user (provisioning pending)".to_string())?;
+    tx.commit()
+        .await
+        .map_err(|e| format!("tx commit: {e}"))?;
 
     Ok(AccessAuth {
         user_sub: sub,

@@ -1311,7 +1311,17 @@ impl<S: AsyncRead + AsyncWrite + Unpin> ImapSession<S> {
                     .unwrap_or(false)
             })
             .and_then(|m| m.get("id"))
-            .and_then(|v| v.as_i64())
+            // The store's mailbox ids are UUIDs (the P1 migration moved
+            // them off the legacy numeric ids) - accept either form so a
+            // stringified UUID reaches the store's ingest/append body
+            // (E2E-APPEND-1: the former as_i64() always failed and the
+            // APPEND reported "mailbox not found" for every real mailbox).
+            .and_then(|v| {
+                v.as_i64()
+                    .map(|n| serde_json::json!(n))
+                    .or_else(|| v.as_str().map(|s| serde_json::json!(s)))
+                    .or_else(|| v.as_u64().map(|n| serde_json::json!(n)))
+            })
             .ok_or_else(|| format!("mailbox {target} not found"))?;
         // The APPEND literal content was already inlined by the receiver
         // into `self.last_literal` - see `run()`'s LiteralContinuation

@@ -103,10 +103,14 @@ pub async fn build_state(core: sentin8::shell::ServiceCore) -> anyhow::Result<Ap
         std::env::var("SENTIN8_CAPTAIN_LOCAL_IP").unwrap_or_else(|_| "127.0.0.1".into()),
         std::env::var("EMAIL8_ACCESS_PORT").unwrap_or_else(|_| "?".into()),
     );
+    // The service_type MUST be the colon registry form (`email8:access` -
+    // captain's registry key and the gate's lookups); the dash form is
+    // the BINARY name only (E2E-GATE-1: a dash-form publish left the
+    // gate without a listener map).
     email8::gate::contracts::listener_registry::publish(
         &config.valkey_url,
         "email8:access",
-        "email8-access",
+        "email8:access",
         &instance_key,
         &bound,
     )
@@ -115,7 +119,7 @@ pub async fn build_state(core: sentin8::shell::ServiceCore) -> anyhow::Result<Ap
     email8::gate::contracts::listener_registry::spawn_unpublish_on_shutdown(
         config.valkey_url.clone(),
         "email8:access",
-        "email8-access",
+        "email8:access",
         instance_key,
     );
 

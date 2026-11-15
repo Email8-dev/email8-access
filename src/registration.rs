@@ -64,7 +64,20 @@ const M2M_GRANTS: &[M2mGrant] = &[
             "email8:mail:read",
             "email8:mail:write",
             "email8:mail:receive",
+            // Message blobs (IMAP FETCH BODY[] / POP3 RETR read the raw
+            // message bytes from Storage; IMAP APPEND writes them) - the
+            // PLATFORM vocabulary `sentin8:storage:env:*`.
+            "sentin8:storage:env:read",
+            "sentin8:storage:env:write",
         ],
+    },
+    M2mGrant {
+        // The TLS-plane hostname resolver's lookup workload (TLS-RLS-4): cache
+        // miss calls Sys `GET /v1/resolve/hostname` - without this
+        // declared row user-token requests 401 at identity resolution
+        // ("workload 'email8-access-tls' is not enrolled").
+        workload: "email8-access-tls",
+        scopes: &["sentin8:sys:instances:read"],
     },
     M2mGrant {
         // Shield hot-reload consumer (policy crate `policy_bus_client`, full
